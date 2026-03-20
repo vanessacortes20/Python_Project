@@ -1,0 +1,27 @@
+# ─── API & Framework ───────────────────────────────────────────
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.17     # requerido para File/UploadFile en FastAPI
+
+# ─── Validación ─────────────────────────────────────────────────
+pydantic==2.10.3
+
+# ─── Análisis y Limpieza de Datos ───────────────────────────────
+# NOTA: se usan versiones con wheels precompilados para Windows
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.4.2          # KNNImputer, IterativeImputer (MICE)
+
+# ─── Formatos de Archivo ────────────────────────────────────────
+openpyxl==3.1.5              # soporte Excel (opcional)
+# geopandas                  # soporte Shapefile — instalar aparte con conda si se necesita
+
+# ─── Cliente Python (bonus) ─────────────────────────────────────
+httpx==0.27.2
+requests==2.32.3
+
+# ─── Testing (bonus) ────────────────────────────────────────────
+pytest==8.3.4
+
+# ─── Utilidades ─────────────────────────────────────────────────
+python-dateutil==2.9.0       # parsing robusto de fechas
