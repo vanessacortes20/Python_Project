@@ -1,0 +1,40 @@
+# ─── Entorno Virtual ────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# ─── Python cache ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# ─── Datos locales (no subir al repo) ───────────────────────────
+data/*.pkl
+data/*.pickle
+*.pkl
+*.pickle
+
+# ─── IDEs ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Sistema ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Cobertura de pruebas ────────────────────────────────────────
+.coverage
+htmlcov/
+coverage.xml
+
+# ─── Distribuciones ─────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
