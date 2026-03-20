@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SurveyLab — API Encuestas Poblacionales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f0f2f7;--surface:#fff;--surface2:#f8f9fc;--border:#e2e6ef;
+  --ink:#111827;--ink2:#374151;--ink3:#6b7280;--ink4:#9ca3af;
+  --teal:#0d9488;--teal-l:#14b8a6;--teal-xl:#ccfbf1;--teal-d:#0f766e;
+  --amber:#d97706;--amber-l:#fef3c7;--rose:#e11d48;--rose-l:#ffe4e6;
+  --sky:#0284c7;--sky-l:#e0f2fe;--violet:#7c3aed;--violet-l:#ede9fe;
+  --green:#16a34a;--green-l:#dcfce7;
+  --r:10px;--r2:14px;--sh:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.05);
+  --sh2:0 4px 24px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;font-size:14px}
+code,pre,kbd{font-family:'JetBrains Mono',monospace}
+
+/* Sidebar */
+.sidebar{width:220px;min-width:220px;background:#0f172a;height:100vh;position:sticky;top:0;display:flex;flex-direction:column;overflow-y:auto}
+.sb-logo{padding:22px 20px 16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sb-logo h1{font-size:17px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.sb-logo p{font-size:10px;color:rgba(255,255,255,.35);margin-top:3px;letter-spacing:.5px;text-transform:uppercase}
+.sb-section{padding:12px 12px 0;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.28);margin-top:8px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:7px;cursor:pointer;color:rgba(255,255,255,.55);font-size:12.5px;font-weight:500;transition:all .18s;border:none;background:none;width:100%;text-align:left;margin:1px 0}
+.sb-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.sb-item.active{background:var(--teal);color:#fff;font-weight:600}
+.sb-item .ic{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.sb-footer{margin-top:auto;padding:14px 16px;border-top:1px solid rgba(255,255,255,.07);font-size:10px;color:rgba(255,255,255,.2);line-height:1.6}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:80;box-shadow:var(--sh)}
+.tb-title{font-size:15px;font-weight:700;color:var(--ink)}
+.tb-sub{font-size:11px;color:var(--ink3);margin-top:1px}
+.api-input{padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:12px;color:var(--ink);background:var(--surface2);width:190px;outline:none}
+.api-input:focus{border-color:var(--teal)}
+.conn{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600}
+.cdot{width:7px;height:7px;border-radius:50%}
+.cdot.on{background:var(--green);animation:pulse 2s infinite}
+.cdot.off{background:var(--rose)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Content */
+.content{padding:24px 28px;flex:1}
+.panel{display:none;animation:fu .3s ease both}
+.panel.active{display:block}
+@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:22px;box-shadow:var(--sh);margin-bottom:18px}
+.card-sm{padding:16px}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px}
+.ct{font-size:14px;font-weight:700;color:var(--ink)}
+.cs{font-size:11.5px;color:var(--ink3);margin-top:2px}
+
+/* Stats */
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:20px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:16px;display:flex;gap:12px;align-items:flex-start;box-shadow:var(--sh);transition:.2s}
+.sc:hover{box-shadow:var(--sh2);transform:translateY(-2px)}
+.si{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.si-t{background:var(--teal-xl)} .si-a{background:var(--amber-l)} .si-v{background:var(--violet-l)} .si-s{background:var(--sky-l)} .si-r{background:var(--rose-l)} .si-g{background:var(--green-l)}
+.sl{font-size:10.5px;color:var(--ink3);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.sv{font-size:22px;font-weight:800;color:var(--ink);line-height:1.1;margin-top:2px}
+.ss{font-size:10.5px;color:var(--ink4);margin-top:3px}
+
+/* Grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:960px){.g2,.g3{grid-template-columns:1fr}}
+
+/* Charts */
+.cc{position:relative;height:220px}
+.cc-tall{height:280px}
+
+/* Forms */
+.fg{margin-bottom:14px}
+label{display:block;font-size:11px;font-weight:700;color:var(--ink2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+input,select,textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;color:var(--ink);background:var(--surface2);outline:none;transition:.15s}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+textarea{min-height:70px;resize:vertical}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.sec-title{font-size:13px;font-weight:700;color:var(--ink);margin:18px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;border:none;transition:.18s}
+.btn-p{background:var(--teal);color:#fff} .btn-p:hover{background:var(--teal-d);box-shadow:0 3px 12px rgba(13,148,136,.3)}
+.btn-s{background:var(--surface2);color:var(--ink2);border:1px solid var(--border)} .btn-s:hover{background:var(--border)}
+.btn-d{background:var(--rose-l);color:var(--rose);border:1px solid #fca5a5} .btn-d:hover{background:#fecaca}
+.btn-sm{padding:5px 11px;font-size:11.5px} .btn-xs{padding:3px 8px;font-size:11px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+
+/* Tables */
+.tw{overflow-x:auto;border-radius:9px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead{background:var(--surface2)}
+th{padding:9px 13px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--ink3);border-bottom:1px solid var(--border)}
+td{padding:9px 13px;border-bottom:1px solid var(--surface2);color:var(--ink2)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+
+/* Chips */
+.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700}
+.ct_{background:var(--teal-xl);color:var(--teal-d)}
+.ca{background:var(--amber-l);color:#92400e}
+.cv{background:var(--violet-l);color:#4c1d95}
+.cs_{background:var(--sky-l);color:#075985}
+.cr{background:var(--rose-l);color:#9f1239}
+.cg{background:var(--green-l);color:#14532d}
+.method-get{background:#dbeafe;color:#1d4ed8;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700}
+.method-post{background:#dcfce7;color:#15803d;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700}
+.method-put{background:#fef3c7;color:#b45309;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700}
+.method-del{background:#fee2e2;color:#b91c1c;font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700}
+
+/* Alerts */
+.al{padding:11px 14px;border-radius:8px;font-size:12.5px;margin-bottom:14px;display:flex;gap:9px;align-items:flex-start;line-height:1.5}
+.al-ok{background:var(--green-l);color:#14532d;border:1px solid #bbf7d0}
+.al-er{background:var(--rose-l);color:#7f1d1d;border:1px solid #fca5a5}
+.al-in{background:var(--sky-l);color:#0c4a6e;border:1px solid #bae6fd}
+.al-wa{background:var(--amber-l);color:#78350f;border:1px solid #fde68a}
+
+/* Upload */
+.upz{border:2px dashed var(--teal-l);border-radius:var(--r2);padding:36px;text-align:center;background:#f0fdf4;cursor:pointer;transition:.2s}
+.upz:hover,.upz.drag{border-color:var(--teal);background:var(--teal-xl)}
+.up-ic{font-size:36px;margin-bottom:10px}
+
+/* Progress */
+.pb{background:var(--border);border-radius:4px;height:6px;overflow:hidden}
+.pbf{height:100%;border-radius:4px;transition:width .5s}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px}
+.tab{padding:8px 16px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink3);border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;border-radius:5px 5px 0 0;transition:.15s}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.tp{display:none}
+.tp.active{display:block;animation:fu .2s ease}
+
+/* Modal */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.mo.open{display:flex}
+.md{background:#fff;border-radius:16px;padding:28px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--sh2);animation:fu .2s ease}
+
+/* Spinner */
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+.spin-d{width:18px;height:18px;border:2.5px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+.loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:36px;color:var(--ink3)}
+.empty{text-align:center;padding:40px 20px;color:var(--ink4)}
+.empty-ic{font-size:42px;margin-bottom:10px;opacity:.5}
+
+/* Imputacion */
+.imp-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
+.imp-method{font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.m-knn{background:#dbeafe;color:#1e40af}
+.m-mice{background:var(--violet-l);color:#4c1d95}
+.m-media{background:var(--green-l);color:#14532d}
+.m-mediana{background:var(--amber-l);color:#92400e}
+.m-moda{background:var(--sky-l);color:#075985}
+.m-eliminar{background:var(--rose-l);color:#9f1239}
+.m-ninguno{background:var(--border);color:var(--ink3)}
+
+/* ===== LIKERT INTERACTIVO ===== */
+.pregunta-bloque{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.pregunta-titulo{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px;display:flex;align-items:flex-start;gap:8px}
+.pregunta-desc{font-size:11.5px;color:var(--ink3);margin-bottom:12px;line-height:1.5}
+.pregunta-requerido{color:var(--rose);font-size:11px;font-weight:700}
+/* Likert buttons */
+.likert-row{display:flex;gap:8px;flex-wrap:wrap}
+.likert-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:10px 14px;border:2px solid var(--border);border-radius:9px;
+  cursor:pointer;background:var(--surface);transition:all .18s;min-width:58px;
+  font-family:inherit;font-size:12px;color:var(--ink3);font-weight:500;
+}
+.likert-btn:hover{border-color:var(--teal-l);background:var(--teal-xl);color:var(--teal-d)}
+.likert-btn.sel{border-color:var(--teal);background:var(--teal);color:#fff;font-weight:700;box-shadow:0 2px 10px rgba(13,148,136,.3)}
+.likert-num{font-size:18px;font-weight:800;line-height:1}
+.likert-lbl{font-size:9.5px;text-align:center;line-height:1.2}
+/* Si/No buttons */
+.binary-row{display:flex;gap:10px}
+.binary-btn{
+  flex:1;padding:10px 0;border:2px solid var(--border);border-radius:9px;
+  cursor:pointer;background:var(--surface);font-family:inherit;
+  font-size:13px;font-weight:600;color:var(--ink3);transition:all .18s;text-align:center;
+}
+.binary-btn:hover{border-color:var(--teal-l);background:var(--teal-xl);color:var(--teal-d)}
+.binary-btn.sel-si{border-color:var(--green);background:var(--green-l);color:var(--green);font-weight:700}
+.binary-btn.sel-no{border-color:var(--rose);background:var(--rose-l);color:var(--rose);font-weight:700}
+/* Texto input limpio */
+.pregunta-textarea{min-height:55px;font-size:12.5px}
+.pregunta-valido::after{content:"✓";color:var(--green);font-weight:700;margin-left:6px;font-size:12px}
+.pregunta-err{font-size:11px;color:var(--rose);margin-top:5px;display:none}
+
+/* Col analysis card */
+.col-card{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:14px;margin-bottom:10px}
+
+pre{background:#1e293b;color:#e2e8f0;border-radius:8px;padding:16px;overflow-x:auto;font-size:11.5px;line-height:1.6}
+code{background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:11.5px;color:var(--teal-d)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <h1>SurveyLab</h1>
+    <p>API Encuestas Poblacionales</p>
+  </div>
+  <nav style="padding:10px 8px;flex:1">
+    <div class="sb-section">Pipeline de Datos</div>
+    <button class="sb-item active" data-p="carga" onclick="nav('carga',this)">
+      <span class="ic">📁</span> Carga de Archivo
+    </button>
+    <button class="sb-item" data-p="imputacion" onclick="nav('imputacion',this)">
+      <span class="ic">🧹</span> Imputación
+    </button>
+    <button class="sb-item" data-p="analisis" onclick="nav('analisis',this)">
+      <span class="ic">🔬</span> Análisis Estadístico
+    </button>
+    <button class="sb-item" data-p="visualizaciones" onclick="nav('visualizaciones',this)">
+      <span class="ic">📊</span> Visualizaciones
+    </button>
+    <div class="sb-section" style="margin-top:12px">API REST (RF1–RF5)</div>
+    <button class="sb-item" data-p="encuestas" onclick="nav('encuestas',this)">
+      <span class="ic">📋</span> Registrar Encuesta
+    </button>
+    <button class="sb-item" data-p="lista" onclick="nav('lista',this);loadList()">
+      <span class="ic">🗂</span> Ver Registros
+    </button>
+    <button class="sb-item" data-p="estadisticas" onclick="nav('estadisticas',this);loadApiStats()">
+      <span class="ic">📈</span> Estadísticas API
+    </button>
+    <div class="sb-section" style="margin-top:12px">Entrega</div>
+    <button class="sb-item" data-p="exportar" onclick="nav('exportar',this);loadFuentes()">
+      <span class="ic">📦</span> Exportar
+    </button>
+    <button class="sb-item" data-p="apidoc" onclick="nav('apidoc',this)">
+      <span class="ic">🔌</span> Documentación
+    </button>
+  </nav>
+  <div class="sb-footer">FastAPI · Pydantic v2<br/>pandas · scikit-learn · scipy<br/>USTA · Python para APIs e IA</div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div>
+      <div class="tb-title" id="tb-title">Carga de Archivo</div>
+      <div class="tb-sub" id="tb-sub">Sube CSV con datos de Customer Feedback Survey</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="conn"><span class="cdot off" id="cdot"></span><span id="ctxt" style="color:var(--ink3)">Conectando…</span></div>
+      <input class="api-input" id="api-url" value="http://localhost:8000" onchange="API=this.value;ping()"/>
+      <button class="btn btn-s btn-sm" onclick="ping()">⟳</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+  <!-- ══════════════ CARGA ══════════════ -->
+  <div class="panel active" id="panel-carga">
+    <div id="alert-carga"></div>
+    <div class="g3" style="margin-bottom:18px">
+      <div class="card card-sm" style="border-left:3px solid var(--teal)">
+        <div style="font-size:11px;font-weight:700;color:var(--teal);margin-bottom:4px">RF1 · Modelos Pydantic</div>
+        <div style="font-size:12px;color:var(--ink2)">3 modelos anidados: <code>Encuestado</code> → <code>RespuestaEncuesta</code> → <code>EncuestaCompleta</code></div>
+      </div>
+      <div class="card card-sm" style="border-left:3px solid var(--violet)">
+        <div style="font-size:11px;font-weight:700;color:var(--violet);margin-bottom:4px">RF2 · @field_validator</div>
+        <div style="font-size:12px;color:var(--ink2)">mode='before' + mode='after' · edad, estrato, departamento, Likert</div>
+      </div>
+      <div class="card card-sm" style="border-left:3px solid var(--amber)">
+        <div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:4px">RF4 · HTTP 422</div>
+        <div style="font-size:12px;color:var(--ink2)">Handler personalizado + JSON estructurado + logging</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">📁 Cargar Dataset — Customer Feedback Survey</div><div class="cs">CSV con nulos aleatorios ≤20% para demostrar el pipeline de imputación</div></div></div>
+      <div class="upz" id="upz"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="dropFile(event)" onclick="document.getElementById('fi').click()">
+        <div class="up-ic">📂</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink2)">Arrastra o haz clic — customer_feedback_survey.csv</div>
+        <div style="font-size:11px;color:var(--ink4);margin-top:4px">CSV · JSON · GeoJSON · Shapefile</div>
+        <input type="file" id="fi" accept=".csv,.json,.geojson,.shp" style="display:none" onchange="setFile(this.files[0])"/>
+      </div>
+      <div class="fr" style="margin-top:14px">
+        <div class="fg"><label>Nombre del Dataset</label><input id="ds-nombre" placeholder="Customer Feedback Survey 2024"/></div>
+        <div class="fg" style="display:flex;align-items:flex-end">
+          <button class="btn btn-p" id="btn-upload" onclick="uploadFile()" style="width:100%" disabled>⬆️ Procesar Dataset</button>
+        </div>
+      </div>
+    </div>
+    <div id="res-carga" style="display:none">
+      <div class="sg" id="stats-carga"></div>
+      <div id="id-banner"></div>
+      <div id="alerts-carga"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ IMPUTACIÓN ══════════════ -->
+  <div class="panel" id="panel-imputacion">
+    <div class="card" style="border-left:3px solid var(--teal)">
+      <div class="ch"><div><div class="ct">🧹 Imputación Inteligente por Variable</div><div class="cs">Criterios estadísticos: normalidad (Shapiro-Wilk / D'Agostino-Pearson), asimetría, correlación, % nulos</div></div></div>
+      <div class="tw" style="margin-bottom:18px">
+        <table><thead><tr><th>Método</th><th>Criterio de Selección</th><th>Cuándo aplica</th></tr></thead>
+        <tbody>
+          <tr><td><span class="imp-method m-knn">KNN</span></td><td>Correlación media ≥ 0.3 con otras vars</td><td>≥3 vars numéricas, nulos ≤40%</td></tr>
+          <tr><td><span class="imp-method m-mice">MICE</span></td><td>Nulos 15–50%, estructura multivariada</td><td>≥2 vars numéricas correlacionadas</td></tr>
+          <tr><td><span class="imp-method m-media">Media</span></td><td>Normal (Shapiro p&gt;0.05), |skew|≤1</td><td>Distribución simétrica</td></tr>
+          <tr><td><span class="imp-method m-mediana">Mediana</span></td><td>No normal o asimétrica (|skew|&gt;1)</td><td>Distribuciones sesgadas</td></tr>
+          <tr><td><span class="imp-method m-moda">Moda</span></td><td>Variable categórica, nulos ≤50%</td><td>Siempre para categóricas</td></tr>
+          <tr><td><span class="imp-method m-eliminar">Eliminar</span></td><td>Numérica &gt;60% / Categórica &gt;50%</td><td>Demasiada info faltante</td></tr>
+        </tbody></table>
+      </div>
+      <div id="imp-content"><div class="empty"><div class="empty-ic">🧹</div><p>Carga un archivo primero</p></div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ANÁLISIS ESTADÍSTICO ══════════════ -->
+  <div class="panel" id="panel-analisis">
+    <div id="analisis-content"><div class="empty"><div class="empty-ic">🔬</div><p>Carga un archivo para ver el análisis estadístico completo</p></div></div>
+  </div>
+
+  <!-- ══════════════ VISUALIZACIONES ══════════════ -->
+  <div class="panel" id="panel-visualizaciones">
+    <div id="viz-content"><div class="empty"><div class="empty-ic">📊</div><p>Carga un archivo para ver las visualizaciones</p></div></div>
+  </div>
+
+  <!-- ══════════════ ENCUESTA (RF1–RF5) ══════════════ -->
+  <div class="panel" id="panel-encuestas">
+    <div id="alert-enc"></div>
+    <div class="g3" style="margin-bottom:18px">
+      <div class="card card-sm" style="border-left:3px solid var(--teal)">
+        <div style="font-size:11px;font-weight:700;color:var(--teal);margin-bottom:4px">RF5 · async def</div>
+        <div style="font-size:12px;color:var(--ink2)">Todos los endpoints usan <code>async def</code> · ASGI via Uvicorn</div>
+      </div>
+      <div class="card card-sm" style="border-left:3px solid var(--violet)">
+        <div style="font-size:11px;font-weight:700;color:var(--violet);margin-bottom:4px">RT5 · Decoradores</div>
+        <div style="font-size:12px;color:var(--ink2)"><code>@log_request</code> · <code>@timer</code> · orden superior async-aware</div>
+      </div>
+      <div class="card card-sm" style="border-left:3px solid var(--sky)">
+        <div style="font-size:11px;font-weight:700;color:var(--sky);margin-bottom:4px">RF3 · CRUD completo</div>
+        <div style="font-size:12px;color:var(--ink2)">POST · GET · GET{id} · PUT · DELETE · /estadisticas/</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <!-- Título y contexto del instrumento -->
+      <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);border-radius:11px;padding:22px 24px;margin-bottom:20px">
+        <div style="font-size:11px;color:#5eead4;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Instrumento de Medición</div>
+        <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-.3px">Encuesta de Satisfacción — RetailShop</div>
+        <div style="font-size:12.5px;color:rgba(255,255,255,.65);line-height:1.7;max-width:620px">
+          RetailShop es una plataforma de comercio electrónico con presencia nacional. Esta encuesta evalúa la experiencia
+          integral del cliente en cuatro dimensiones clave: <b style="color:#fff">calidad de producto</b>, <b style="color:#fff">velocidad de entrega</b>,
+          <b style="color:#fff">atención al cliente</b> y <b style="color:#fff">proceso de devoluciones</b>. Los datos son utilizados
+          para mejorar continuamente el servicio y la experiencia de compra.
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <span style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:20px">📦 E-commerce · Retail</span>
+          <span style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:20px">📊 Customer Feedback Survey — Kaggle</span>
+          <span style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:20px">🇨🇴 Colombia</span>
+          <span style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:20px">⏱ ~2 minutos</span>
+        </div>
+      </div>
+      <div class="ch" style="margin-bottom:16px">
+        <div><div class="cs" style="font-size:12px">RF1 · Pydantic · Union[int,float,str,None] · Optional — completa las 6 preguntas obligatorias (*)</div></div>
+        <button class="btn btn-s btn-sm" onclick="loadExampleEnc()">🎲 Llenar ejemplo</button>
+      </div>
+
+      <!-- Datos demográficos -->
+      <div class="sec-title">👤 Datos del Encuestado <span style="font-size:10px;background:#1e293b;color:#94a3b8;padding:2px 7px;border-radius:4px;letter-spacing:.3px">Pydantic · Encuestado</span></div>
+      <div class="fr">
+        <div class="fg"><label>Nombre completo *</label><input id="f-nom" placeholder="María García López"/></div>
+        <div class="fg"><label>Edad [0–120] *</label><input id="f-edad" type="number" min="0" max="120" placeholder="34"/></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Género</label>
+          <select id="f-gen"><option value="">No especificado</option><option>Masculino</option><option>Femenino</option><option>Otro</option></select>
+        </div>
+        <div class="fg"><label>Estrato [1–6] *</label>
+          <select id="f-est"><option value="">Seleccionar</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+        </div>
+        <div class="fg"><label>Educación</label>
+          <select id="f-edu"><option value="">Seleccionar</option><option>Primaria</option><option>Secundaria</option><option>Técnico</option><option>Tecnólogo</option><option>Universitario</option><option>Posgrado</option></select>
+        </div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label>Departamento (Colombia) *</label><select id="f-dep"></select></div>
+        <div class="fg"><label>Canal de recolección</label>
+          <select id="f-can"><option value="">No especificado</option><option>digital</option><option>presencial</option><option>telefónico</option></select>
+        </div>
+      </div>
+
+      <!-- Preguntas del survey -->
+      <div class="sec-title">💬 Preguntas de la Encuesta <span style="font-size:10px;background:#1e293b;color:#94a3b8;padding:2px 7px;border-radius:4px">Union[int,float,str] · Optional</span></div>
+
+      <!-- P01 Shopping_Experience LIKERT -->
+      <div class="pregunta-bloque" id="bloque-P01">
+        <div class="pregunta-titulo">
+          <span style="background:var(--teal-xl);color:var(--teal-d);font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Likert 1–5</span>
+          P01 · Experiencia de Compra
+          <span class="pregunta-requerido">*</span>
+        </div>
+        <div class="pregunta-desc">¿Cómo calificarías tu experiencia general de compra con nosotros? (1 = Muy mala · 5 = Excelente)</div>
+        <div class="likert-row" id="lk-P01">
+          <button class="likert-btn" onclick="selLikert('P01',1,this)"><span class="likert-num">1</span><span class="likert-lbl">Muy<br/>mala</span></button>
+          <button class="likert-btn" onclick="selLikert('P01',2,this)"><span class="likert-num">2</span><span class="likert-lbl">Mala</span></button>
+          <button class="likert-btn" onclick="selLikert('P01',3,this)"><span class="likert-num">3</span><span class="likert-lbl">Regular</span></button>
+          <button class="likert-btn" onclick="selLikert('P01',4,this)"><span class="likert-num">4</span><span class="likert-lbl">Buena</span></button>
+          <button class="likert-btn" onclick="selLikert('P01',5,this)"><span class="likert-num">5</span><span class="likert-lbl">Excelente</span></button>
+        </div>
+        <div class="pregunta-err" id="err-P01">⚠️ Selecciona una opción</div>
+      </div>
+
+      <!-- P02 Product_Quality LIKERT -->
+      <div class="pregunta-bloque" id="bloque-P02">
+        <div class="pregunta-titulo">
+          <span style="background:var(--teal-xl);color:var(--teal-d);font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Likert 1–5</span>
+          P02 · Calidad del Producto
+          <span class="pregunta-requerido">*</span>
+        </div>
+        <div class="pregunta-desc">¿Cómo evalúas la calidad de los productos que adquiriste? (1 = Muy baja · 5 = Muy alta)</div>
+        <div class="likert-row" id="lk-P02">
+          <button class="likert-btn" onclick="selLikert('P02',1,this)"><span class="likert-num">1</span><span class="likert-lbl">Muy<br/>baja</span></button>
+          <button class="likert-btn" onclick="selLikert('P02',2,this)"><span class="likert-num">2</span><span class="likert-lbl">Baja</span></button>
+          <button class="likert-btn" onclick="selLikert('P02',3,this)"><span class="likert-num">3</span><span class="likert-lbl">Media</span></button>
+          <button class="likert-btn" onclick="selLikert('P02',4,this)"><span class="likert-num">4</span><span class="likert-lbl">Alta</span></button>
+          <button class="likert-btn" onclick="selLikert('P02',5,this)"><span class="likert-num">5</span><span class="likert-lbl">Muy<br/>alta</span></button>
+        </div>
+        <div class="pregunta-err" id="err-P02">⚠️ Selecciona una opción</div>
+      </div>
+
+      <!-- P03 Delivery_Speed LIKERT -->
+      <div class="pregunta-bloque" id="bloque-P03">
+        <div class="pregunta-titulo">
+          <span style="background:var(--teal-xl);color:var(--teal-d);font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Likert 1–5</span>
+          P03 · Velocidad de Entrega
+          <span class="pregunta-requerido">*</span>
+        </div>
+        <div class="pregunta-desc">¿Qué tan rápido fue el proceso de entrega de tu pedido? (1 = Muy lento · 5 = Muy rápido)</div>
+        <div class="likert-row" id="lk-P03">
+          <button class="likert-btn" onclick="selLikert('P03',1,this)"><span class="likert-num">1</span><span class="likert-lbl">Muy<br/>lento</span></button>
+          <button class="likert-btn" onclick="selLikert('P03',2,this)"><span class="likert-num">2</span><span class="likert-lbl">Lento</span></button>
+          <button class="likert-btn" onclick="selLikert('P03',3,this)"><span class="likert-num">3</span><span class="likert-lbl">Normal</span></button>
+          <button class="likert-btn" onclick="selLikert('P03',4,this)"><span class="likert-num">4</span><span class="likert-lbl">Rápido</span></button>
+          <button class="likert-btn" onclick="selLikert('P03',5,this)"><span class="likert-num">5</span><span class="likert-lbl">Muy<br/>rápido</span></button>
+        </div>
+        <div class="pregunta-err" id="err-P03">⚠️ Selecciona una opción</div>
+      </div>
+
+      <!-- P04 Customer_Service LIKERT -->
+      <div class="pregunta-bloque" id="bloque-P04">
+        <div class="pregunta-titulo">
+          <span style="background:var(--teal-xl);color:var(--teal-d);font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Likert 1–5</span>
+          P04 · Atención al Cliente
+          <span class="pregunta-requerido">*</span>
+        </div>
+        <div class="pregunta-desc">¿Cómo calificarías la atención y soporte recibido por parte del equipo de servicio al cliente?</div>
+        <div class="likert-row" id="lk-P04">
+          <button class="likert-btn" onclick="selLikert('P04',1,this)"><span class="likert-num">1</span><span class="likert-lbl">Muy<br/>mala</span></button>
+          <button class="likert-btn" onclick="selLikert('P04',2,this)"><span class="likert-num">2</span><span class="likert-lbl">Mala</span></button>
+          <button class="likert-btn" onclick="selLikert('P04',3,this)"><span class="likert-num">3</span><span class="likert-lbl">Regular</span></button>
+          <button class="likert-btn" onclick="selLikert('P04',4,this)"><span class="likert-num">4</span><span class="likert-lbl">Buena</span></button>
+          <button class="likert-btn" onclick="selLikert('P04',5,this)"><span class="likert-num">5</span><span class="likert-lbl">Excelente</span></button>
+        </div>
+        <div class="pregunta-err" id="err-P04">⚠️ Selecciona una opción</div>
+      </div>
+
+      <!-- P05 Return_Experience BINARIO -->
+      <div class="pregunta-bloque" id="bloque-P05">
+        <div class="pregunta-titulo">
+          <span style="background:var(--violet-l);color:#4c1d95;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Binario</span>
+          P05 · Experiencia de Devolución
+          <span class="pregunta-requerido">*</span>
+        </div>
+        <div class="pregunta-desc">¿Has realizado alguna devolución de producto? ¿Fue satisfactoria la experiencia?</div>
+        <div class="binary-row" id="bin-P05">
+          <button class="binary-btn" onclick="selBinary('P05','Si',this)">✅ Sí, fue satisfactoria</button>
+          <button class="binary-btn" onclick="selBinary('P05','No',this)">❌ No / No realicé devolución</button>
+        </div>
+        <div class="pregunta-err" id="err-P05">⚠️ Selecciona una opción</div>
+      </div>
+
+      <!-- P06 Recommendation BINARIO -->
+      <div class="pregunta-bloque" id="bloque-P06">
+        <div class="pregunta-titulo">
+          <span style="background:var(--violet-l);color:#4c1d95;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Binario</span>
+          P06 · Recomendación
+          <span class="pregunta-requerido">*</span>
+        </div>
+        <div class="pregunta-desc">¿Recomendarías nuestra tienda a familiares o amigos?</div>
+        <div class="binary-row" id="bin-P06">
+          <button class="binary-btn" onclick="selBinary('P06','Si',this)">✅ Sí, la recomendaría</button>
+          <button class="binary-btn" onclick="selBinary('P06','No',this)">❌ No la recomendaría</button>
+        </div>
+        <div class="pregunta-err" id="err-P06">⚠️ Selecciona una opción</div>
+      </div>
+
+      <!-- P07 Comentarios TEXTO -->
+      <div class="pregunta-bloque" id="bloque-P07">
+        <div class="pregunta-titulo">
+          <span style="background:var(--sky-l);color:#075985;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Texto libre</span>
+          P07 · Comentarios Adicionales
+        </div>
+        <div class="pregunta-desc">¿Tienes algún comentario, sugerencia o aspecto a mejorar? (opcional)</div>
+        <textarea class="pregunta-textarea" id="txt-P07" placeholder="Escribe aquí tu comentario…" oninput="respMap['P07']=this.value||null"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-p" id="btn-sub" onclick="submitEnc()">✓ Registrar Encuesta</button>
+        <button class="btn btn-s" onclick="clearEncForm()">🗑 Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ LISTA ENCUESTAS ══════════════ -->
+  <div class="panel" id="panel-lista">
+    <div class="card">
+      <div class="ch">
+        <div><div class="ct">Encuestas Registradas</div></div>
+        <div style="display:flex;gap:8px">
+          <input id="filt-dep" placeholder="Filtrar departamento…" style="width:170px" oninput="loadList()"/>
+          <button class="btn btn-s btn-sm" onclick="loadList()">⟳</button>
+        </div>
+      </div>
+      <div id="list-content"><div class="loading"><div class="spin-d"></div>Cargando…</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ ESTADÍSTICAS API ══════════════ -->
+  <div class="panel" id="panel-estadisticas">
+    <div class="sg" id="api-stats-sg"><div class="loading"><div class="spin-d"></div>Cargando…</div></div>
+
+    <!-- Tabs avanzados -->
+    <div class="tabs" id="stats-tabs">
+      <button class="tab active" onclick="showTab('st-demografico','stats-tabs',this)">👥 Demográfico</button>
+      <button class="tab" onclick="showTab('st-likert','stats-tabs',this)">⭐ Likert</button>
+      <button class="tab" onclick="showTab('st-correlacion','stats-tabs',this);loadAdvancedStats()">🔗 Correlaciones</button>
+      <button class="tab" onclick="showTab('st-outliers','stats-tabs',this);loadAdvancedStats()">⚠️ Outliers</button>
+      <button class="tab" onclick="showTab('st-qqplot','stats-tabs',this);loadAdvancedStats()">📉 QQ-Plots</button>
+    </div>
+
+    <!-- Demográfico -->
+    <div class="tp active" id="st-demografico">
+      <div class="g2">
+        <div class="card"><div class="ct" style="margin-bottom:12px">Distribución por Estrato</div><div class="cc"><canvas id="c-est"></canvas></div></div>
+        <div class="card"><div class="ct" style="margin-bottom:12px">Distribución por Género</div><div class="cc"><canvas id="c-gen"></canvas></div></div>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="ct" style="margin-bottom:12px">Top Departamentos</div><div class="cc cc-tall"><canvas id="c-dep"></canvas></div></div>
+        <div class="card"><div class="ct" style="margin-bottom:12px">% Nulos por Pregunta</div><div class="cc cc-tall"><canvas id="c-nul"></canvas></div></div>
+      </div>
+      <div class="card" id="card-edad-dist" style="margin-top:0">
+        <div class="ct" style="margin-bottom:12px">Distribución de Edades — Histograma + Estadísticas</div>
+        <div class="g2">
+          <div class="cc"><canvas id="c-edad-hist"></canvas></div>
+          <div id="edad-stats" style="display:flex;flex-direction:column;gap:8px;padding:8px 0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Respuestas Likert -->
+    <div class="tp" id="st-likert">
+      <div id="likert-content"><div class="empty"><div class="empty-ic">⭐</div><p>Carga estadísticas para ver distribuciones Likert</p></div></div>
+    </div>
+
+    <!-- Correlaciones -->
+    <div class="tp" id="st-correlacion">
+      <div id="corr-content"><div class="empty"><div class="empty-ic">🔗</div><p>Carga estadísticas para ver correlaciones</p></div></div>
+    </div>
+
+    <!-- Outliers -->
+    <div class="tp" id="st-outliers">
+      <div id="outliers-content"><div class="empty"><div class="empty-ic">⚠️</div><p>Carga estadísticas para ver análisis de outliers</p></div></div>
+    </div>
+
+    <!-- QQ-Plots -->
+    <div class="tp" id="st-qqplot">
+      <div id="qqplot-content"><div class="empty"><div class="empty-ic">📉</div><p>Carga un archivo CSV primero para ver los QQ-plots</p></div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ EXPORTAR ══════════════ -->
+  <div class="panel" id="panel-exportar">
+    <div id="alert-export"></div>
+    <div class="card">
+      <div class="ch">
+        <div><div class="ct">📦 Fuentes disponibles para exportar</div><div class="cs">Encuestas registradas en la API y datasets cargados — selecciona y elige el formato</div></div>
+        <button class="btn btn-s btn-sm" onclick="loadFuentes()">⟳ Actualizar</button>
+      </div>
+      <div id="fuentes-list"><div class="loading"><div class="spin-d"></div>Cargando fuentes…</div></div>
+    </div>
+    <div class="card">
+      <div class="ct" style="margin-bottom:12px">Comparación de Formatos</div>
+      <div class="tw"><table><thead><tr><th>Formato</th><th>Legibilidad</th><th>Interoperabilidad</th><th>Velocidad</th><th>Seguridad</th><th>Uso recomendado</th></tr></thead>
+      <tbody>
+        <tr><td><b>CSV</b></td><td>✅ Excel/Sheets</td><td>✅ Universal</td><td>✅ Rápido</td><td>✅ Seguro</td><td>Análisis tabular, BI, Excel</td></tr>
+        <tr><td><b>JSON</b></td><td>✅ Texto plano</td><td>✅ Universal</td><td>⚠️ Moderada</td><td>✅ Seguro</td><td>APIs REST, transferencia</td></tr>
+        <tr><td><b>Pickle</b></td><td>❌ Binario</td><td>❌ Solo Python</td><td>✅ 3–10× más rápido</td><td>⚠️ Riesgo RCE</td><td>Caché, ML pipelines</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ DOCS ══════════════ -->
+  <div class="panel" id="panel-apidoc">
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch">
+        <div><div class="ct">🔌 Endpoints de la API</div></div>
+        <div style="display:flex;gap:8px">
+          <a id="sw-link" href="http://localhost:8000/docs" target="_blank" class="btn btn-p btn-sm">📘 Swagger UI</a>
+          <a id="rd-link" href="http://localhost:8000/redoc" target="_blank" class="btn btn-s btn-sm">📗 ReDoc</a>
+        </div>
+      </div>
+      <div class="tw"><table><thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method-post">POST</span></td><td><code>/encuestas/</code></td><td>Registrar encuesta (RF1+RF2+RF4)</td><td><code>201/422</code></td></tr>
+        <tr><td><span class="method-get">GET</span></td><td><code>/encuestas/</code></td><td>Listar con filtros + paginación</td><td><code>200</code></td></tr>
+        <tr><td><span class="method-get">GET</span></td><td><code>/encuestas/{id}</code></td><td>Obtener por UUID</td><td><code>200/404</code></td></tr>
+        <tr><td><span class="method-put">PUT</span></td><td><code>/encuestas/{id}</code></td><td>Actualizar</td><td><code>200/404</code></td></tr>
+        <tr><td><span class="method-del">DELETE</span></td><td><code>/encuestas/{id}</code></td><td>Eliminar</td><td><code>204/404</code></td></tr>
+        <tr><td><span class="method-get">GET</span></td><td><code>/encuestas/estadisticas/</code></td><td>Estadísticas globales</td><td><code>200</code></td></tr>
+        <tr><td><span class="method-post">POST</span></td><td><code>/archivos/cargar/</code></td><td>Upload CSV/JSON/GeoJSON</td><td><code>200/400</code></td></tr>
+        <tr><td><span class="method-get">GET</span></td><td><code>/archivos/{id}/reporte/</code></td><td>Reporte EDA completo</td><td><code>200/404</code></td></tr>
+        <tr><td><span class="method-get">GET</span></td><td><code>/archivos/{id}/imputacion/</code></td><td>Decisiones de imputación</td><td><code>200/404</code></td></tr>
+        <tr><td><span class="method-get">GET</span></td><td><code>/exportar/</code></td><td>JSON o Pickle (bonus)</td><td><code>200/400</code></td></tr>
+      </tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="ct" style="margin-bottom:12px">Payload de ejemplo — POST /encuestas/</div>
+      <pre id="payload-ex"></pre>
+    </div>
+    <div class="card">
+      <div class="ct" style="margin-bottom:12px">Error 422 personalizado — RF4</div>
+      <pre id="error-ex"></pre>
+    </div>
+  </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- Modal detalle encuesta -->
+<div class="mo" id="modal">
+  <div class="md">
+    <div style="font-size:17px;font-weight:800;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)" id="modal-title">Detalle</div>
+    <div id="modal-body"></div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button class="btn btn-d btn-sm" id="btn-del">🗑 Eliminar</button>
+      <button class="btn btn-s btn-sm" onclick="document.getElementById('modal').classList.remove('open')">✕ Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════ ESTADO GLOBAL ══════════
+let API = 'http://localhost:8000';
+let currentDatasetId = null;
+let currentDatasetName = null;
+let charts = {};
+// Respuestas mapeadas por pregunta_id
+let respMap = {P07: null};
+// Valores seleccionados likert
+let likertVals = {};
+let binaryVals = {};
+
+const DEPTOS = ["Amazonas","Antioquia","Arauca","Atlántico","Bogotá D.C.","Bolívar","Boyacá","Caldas","Caquetá","Casanare","Cauca","Cesar","Chocó","Córdoba","Cundinamarca","Guainía","Guaviare","Huila","La Guajira","Magdalena","Meta","Nariño","Norte de Santander","Putumayo","Quindío","Risaralda","San Andrés y Providencia","Santander","Sucre","Tolima","Valle del Cauca","Vaupés","Vichada"];
+const DEPTOS_RAND = ["Cundinamarca","Antioquia","Valle del Cauca","Atlántico","Santander","Bolívar","Meta","Tolima","Boyacá","Nariño"];
+const NOMBRES = ["Ana López","Carlos Ruiz","María Torres","José Gómez","Valentina Díaz","Felipe Castro","Laura Herrera","Andrés Morales","Sofía Restrepo","Camilo Vargas"];
+const PALETTE = ['#0d9488','#7c3aed','#d97706','#0284c7','#e11d48','#16a34a','#f59e0b','#06b6d4'];
+
+const PANEL_META = {
+  carga:{title:'Carga de Archivo',sub:'Sube el CSV customer_feedback_survey.csv con nulos para demostrar el pipeline'},
+  imputacion:{title:'Imputación Inteligente',sub:'Selección automática del mejor método por variable · criterios estadísticos'},
+  analisis:{title:'Análisis Estadístico',sub:'EDA completo: normalidad, outliers, skewness, kurtosis, distribuciones'},
+  visualizaciones:{title:'Visualizaciones',sub:'Histogramas · QQ-plots · Boxplots · Distribuciones categóricas'},
+  encuestas:{title:'Registrar Encuesta',sub:'RF1–RF5 · Preguntas basadas en Customer Feedback Survey · Likert interactivo'},
+  lista:{title:'Ver Registros',sub:'Lista de encuestas registradas vía API REST'},
+  estadisticas:{title:'Estadísticas de la API',sub:'Demográfico · Likert · Correlaciones Pearson · Outliers IQR+Z-score'},
+  exportar:{title:'Exportación',sub:'CSV · JSON · Pickle — Encuestas API y datasets cargados'},
+  apidoc:{title:'Documentación API',sub:'RT4 · Swagger UI + ReDoc · RT5 · Decoradores @log_request y @timer'},
+};
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const sel=document.getElementById('f-dep');
+  DEPTOS.forEach(d=>{const o=document.createElement('option');o.value=o.textContent=d;sel.appendChild(o);});
+  ping();
+  setInterval(ping,15000);
+  renderDocs();
+  document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+});
+
+// ══════════ NAV ══════════
+function nav(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  btn.classList.add('active');
+  const m=PANEL_META[name]||{};
+  document.getElementById('tb-title').textContent=m.title||name;
+  document.getElementById('tb-sub').textContent=m.sub||'';
+}
+
+// ══════════ API helpers ══════════
+async function apiFetch(path,opts={}){
+  const r=await fetch(API+path,{headers:{'Content-Type':'application/json',...(opts.headers||{})},method:opts.method||'GET',body:opts.body});
+  const d=await r.json().catch(()=>null);
+  return {ok:r.ok,status:r.status,data:d};
+}
+
+async function ping(){
+  const dot=document.getElementById('cdot'),txt=document.getElementById('ctxt');
+  try{
+    const r=await fetch(API+'/',{signal:AbortSignal.timeout(3000)});
+    if(r.ok){dot.className='cdot on';txt.textContent='Conectado';}
+    else throw 0;
+  }catch{dot.className='cdot off';txt.textContent='Sin conexión';}
+}
+
+function alertEl(id,type,msg){
+  const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=`<div class="al al-${type}">${msg}</div>`;
+  setTimeout(()=>el.innerHTML='',8000);
+}
+
+// ══════════ CARGA DE ARCHIVO ══════════
+let selectedFile=null;
+function dropFile(e){e.preventDefault();document.getElementById('upz').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)setFile(f);}
+function setFile(f){
+  selectedFile=f;
+  document.getElementById('upz').innerHTML=`<div class="up-ic">✅</div><div style="font-size:13px;font-weight:600;color:var(--ink2)">${f.name}</div><div style="font-size:11px;color:var(--ink4);margin-top:4px">${(f.size/1024).toFixed(1)} KB</div>`;
+  document.getElementById('btn-upload').disabled=false;
+  if(!document.getElementById('ds-nombre').value)
+    document.getElementById('ds-nombre').value=f.name.replace(/\.[^.]+$/,'');
+}
+
+async function uploadFile(){
+  if(!selectedFile)return;
+  const nombre=document.getElementById('ds-nombre').value.trim()||selectedFile.name;
+  const btn=document.getElementById('btn-upload');
+  btn.innerHTML='<span class="spin"></span> Procesando…';btn.disabled=true;
+  const fd=new FormData();fd.append('archivo',selectedFile);
+  try{
+    const r=await fetch(`${API}/archivos/cargar/?nombre_dataset=${encodeURIComponent(nombre)}`,{method:'POST',body:fd});
+    const data=await r.json();
+    btn.innerHTML='⬆️ Procesar Dataset';btn.disabled=false;
+    if(r.ok){
+      const idR=await fetch(API+'/archivos/ultimo-id/');
+      const idD=idR.ok?await idR.json():null;
+      currentDatasetId=idD?.dataset_id||null;
+      currentDatasetName=nombre;
+      renderCargaResult(data,currentDatasetId,nombre);
+      if(currentDatasetId){
+        loadImputacion(currentDatasetId);
+        loadAnalisis(currentDatasetId);
+        loadViz(currentDatasetId);
+      }
+      alertEl('alert-carga','ok',`✅ <b>${nombre}</b> procesado — ${data.filas_validas.toLocaleString()} filas válidas.`);
+    }else{
+      alertEl('alert-carga','er',`❌ ${data.detail||JSON.stringify(data)}`);
+    }
+  }catch(e){
+    btn.innerHTML='⬆️ Procesar Dataset';btn.disabled=false;
+    alertEl('alert-carga','er',`❌ Error de conexión: ${e.message}`);
+  }
+}
+
+function renderCargaResult(data,dsId,nombre){
+  document.getElementById('res-carga').style.display='block';
+  const pctL=data.nulos_antes>0?((data.nulos_antes-data.nulos_despues)/data.nulos_antes*100).toFixed(1):'100';
+  document.getElementById('stats-carga').innerHTML=`
+    <div class="sc"><div class="si si-t">📄</div><div><div class="sl">Formato</div><div class="sv" style="font-size:17px">${data.formato_detectado.toUpperCase()}</div></div></div>
+    <div class="sc"><div class="si si-g">✅</div><div><div class="sl">Filas válidas</div><div class="sv">${data.filas_validas.toLocaleString()}</div><div class="ss">de ${data.filas_originales.toLocaleString()}</div></div></div>
+    <div class="sc"><div class="si si-v">🔑</div><div><div class="sl">IDs excluidos</div><div class="sv">${data.columnas_id_excluidas.length}</div><div class="ss">${data.columnas_id_excluidas.join(', ')||'ninguna'}</div></div></div>
+    <div class="sc"><div class="si si-a">🧹</div><div><div class="sl">Reducción nulos</div><div class="sv">${pctL}%</div><div class="ss">${data.nulos_antes.toLocaleString()}→${data.nulos_despues.toLocaleString()}</div></div></div>
+    <div class="sc"><div class="si si-s">📊</div><div><div class="sl">Cols analizadas</div><div class="sv">${data.columnas_analizadas.length}</div></div></div>
+  `;
+  document.getElementById('id-banner').innerHTML=dsId?`
+    <div style="background:#0f172a;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Dataset: <b style="color:rgba(255,255,255,.7)">${nombre}</b></div>
+        <code style="font-size:12px;color:#5eead4;background:none;padding:0;border:none">${dsId}</code>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s btn-sm" onclick="navigator.clipboard.writeText('${dsId}');alertEl('alert-carga','ok','✅ ID copiado')">📋 Copiar ID</button>
+        <button class="btn btn-p btn-sm" onclick="nav('imputacion',document.querySelector('[data-p=imputacion]'))">🧹 Ver Imputación →</button>
+        <button class="btn btn-p btn-sm" onclick="nav('analisis',document.querySelector('[data-p=analisis]'))">🔬 Ver Análisis →</button>
+      </div>
+    </div>`:'';
+  const aa=[];
+  if(data.columnas_id_excluidas.length)aa.push(`<div class="al al-in">🔑 IDs excluidos del análisis: ${data.columnas_id_excluidas.map(c=>`<code>${c}</code>`).join(', ')}</div>`);
+  if(data.errores_muestra.length)aa.push(`<div class="al al-wa">⚠️ ${data.errores_muestra.join(' · ')}</div>`);
+  document.getElementById('alerts-carga').innerHTML=aa.join('');
+}
+
+// ══════════ IMPUTACIÓN ══════════
+async function loadImputacion(dsId){
+  const c=document.getElementById('imp-content');
+  c.innerHTML='<div class="loading"><div class="spin-d"></div>Cargando decisiones de imputación…</div>';
+  const {ok,data}=await apiFetch(`/archivos/${dsId}/imputacion/`);
+  if(!ok){c.innerHTML='<div class="al al-er">Error al cargar imputación</div>';return;}
+  const decs=data.decisiones||[];
+  if(!decs.length){c.innerHTML='<div class="empty">Sin columnas que imputar</div>';return;}
+  const groups={knn:[],mice:[],media:[],mediana:[],moda:[],eliminar:[],ninguno:[]};
+  decs.forEach(d=>{const k=(d.metodo||'ninguno').split(' ')[0].toLowerCase();(groups[k]||groups.ninguno).push(d);});
+  const summary=Object.entries(groups).filter(([,v])=>v.length).map(([k,v])=>`
+    <div class="sc" style="padding:12px 14px">
+      <div class="si si-${k==='knn'?'s':k==='mice'?'v':k==='media'?'g':k==='mediana'?'a':k==='eliminar'?'r':'t'}" style="width:32px;height:32px;font-size:13px">
+        ${k==='knn'?'🔵':k==='mice'?'🟣':k==='media'?'🟢':k==='mediana'?'🟡':k==='moda'?'🔷':k==='eliminar'?'🔴':'⚪'}
+      </div>
+      <div><div class="sl">${k.toUpperCase()}</div><div class="sv" style="font-size:20px">${v.length}</div></div>
+    </div>`).join('');
+  const detalles=decs.map(d=>{
+    const mk=(d.metodo||'ninguno').split(' ')[0].toLowerCase();
+    return `<div class="imp-row">
+      <span class="imp-method m-${mk}">${d.metodo||'—'}</span>
+      <div style="flex:1">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px;flex-wrap:wrap">
+          <b style="font-size:13px">${d.columna}</b>
+          <span class="chip ${d.tipo==='numerica'?'ct_':'cs_'}">${d.tipo}</span>
+          ${d.n_imputados>0?`<span class="chip ca">${d.n_imputados} imputados</span>`:''}
+          ${d.valor_usado!==undefined?`<span class="chip cg">val: ${d.valor_usado}</span>`:''}
+        </div>
+        <div style="font-size:11.5px;color:var(--ink2);line-height:1.5">${d.criterio}</div>
+      </div>
+    </div>`;}).join('');
+  c.innerHTML=`<div class="sg" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:16px">${summary}</div>
+    <div class="sec-title">Decisión por Columna</div>${detalles}
+    <div class="al al-in" style="margin-top:12px">📐 Normalidad: <b>Shapiro-Wilk</b> (n≤5000) o <b>D'Agostino-Pearson</b> (n>5000) con α=0.05</div>`;
+}
+
+// ══════════ ANÁLISIS ESTADÍSTICO ══════════
+async function loadAnalisis(dsId){
+  const c=document.getElementById('analisis-content');
+  c.innerHTML='<div class="loading"><div class="spin-d"></div>Ejecutando análisis estadístico…</div>';
+  const {ok,data}=await apiFetch(`/archivos/${dsId}/reporte/`);
+  if(!ok){c.innerHTML='<div class="al al-er">Error al cargar análisis</div>';return;}
+  const numCols=data.columnas.filter(c=>c.media!==null&&!c.es_columna_id);
+  const catCols=data.columnas.filter(c=>c.top_valores&&!c.es_columna_id);
+  const idCols=data.columnas.filter(c=>c.es_columna_id);
+  c.innerHTML=`
+    <div class="sg">
+      <div class="sc"><div class="si si-t">📊</div><div><div class="sl">Total filas</div><div class="sv">${data.total_filas.toLocaleString()}</div></div></div>
+      <div class="sc"><div class="si si-s">🗂</div><div><div class="sl">Columnas</div><div class="sv">${data.total_columnas}</div></div></div>
+      <div class="sc"><div class="si si-v">🔑</div><div><div class="sl">IDs excluidos</div><div class="sv">${idCols.length}</div></div></div>
+      <div class="sc"><div class="si si-a">🔢</div><div><div class="sl">Numéricas</div><div class="sv">${numCols.length}</div></div></div>
+      <div class="sc"><div class="si si-g">🔤</div><div><div class="sl">Categóricas</div><div class="sv">${catCols.length}</div></div></div>
+    </div>
+    <div class="g2" style="margin-bottom:16px">
+      <div class="al al-in" style="margin:0">📉 <b>Patrón nulos:</b> ${data.patron_nulos}</div>
+      <div class="al al-wa" style="margin:0">💡 <b>Recomendación:</b> ${data.recomendacion_imputacion}</div>
+    </div>
+    ${idCols.length?`<div class="al al-in">🔑 IDs detectados y excluidos: ${idCols.map(c=>`<code>${c.nombre}</code>`).join(', ')}</div>`:''}
+
+    <div class="sec-title">📐 Variables Numéricas — Estadísticas Descriptivas</div>
+    ${numCols.length?`<div class="tw" style="margin-bottom:16px"><table>
+      <thead><tr><th>Columna</th><th>Media</th><th>Mediana</th><th>Std</th><th>Min</th><th>Max</th><th>Skewness</th><th>Kurtosis</th><th>Outliers</th><th>Normalidad</th><th>% Nulos</th></tr></thead>
+      <tbody>${numCols.map(col=>{
+        const nm=col.normalidad; const out=col.outliers;
+        return`<tr>
+          <td><b>${col.nombre}</b></td>
+          <td>${col.media??'—'}</td><td>${col.mediana??'—'}</td><td>${col.desv_std??'—'}</td>
+          <td>${col.minimo??'—'}</td><td>${col.maximo??'—'}</td>
+          <td>${col.skewness!==null&&col.skewness!==undefined?skewChip(col.skewness):'—'}</td>
+          <td>${col.kurtosis!==null&&col.kurtosis!==undefined?kurtChip(col.kurtosis):'—'}</td>
+          <td>${out?`<span class="chip ${out.n_outliers>0?'cr':'cg'}">${out.n_outliers} (${out.pct_outliers}%)</span>`:'—'}</td>
+          <td>${nm?`<span class="chip ${nm.es_normal?'cg':'cr'}" title="${nm.conclusion}">${nm.test}: p=${nm.p_valor}</span>`:'—'}</td>
+          <td><span class="chip ${col.pct_nulos>20?'cr':col.pct_nulos>5?'ca':'cg'}">${col.pct_nulos}%</span></td>
+        </tr>`;}).join('')}
+      </tbody></table></div>`:'<div class="empty">Sin variables numéricas</div>'}
+
+    <div class="sec-title">🔤 Variables Categóricas — Frecuencias Top</div>
+    <div class="g3">${catCols.slice(0,9).map(col=>`
+      <div class="col-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:4px">
+          <b style="font-size:13px">${col.nombre}</b>
+          <span class="chip ca">${col.n_unicos} únicos · ${col.pct_nulos}% nulos</span>
+        </div>
+        ${col.top_valores?col.top_valores.slice(0,5).map(v=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:5px">
+            <span style="color:var(--ink2)">${v.valor}</span>
+            <span class="chip ct_">${v.frecuencia.toLocaleString()} (${v.pct}%)</span>
+          </div>
+          <div class="pb" style="margin-bottom:5px"><div class="pbf" style="width:${v.pct}%;background:var(--teal)"></div></div>`).join(''):''}
+      </div>`).join('')}</div>
+  `;
+}
+
+function skewChip(s){const cls=Math.abs(s)>1?'cr':Math.abs(s)>0.5?'ca':'cg';const lbl=s>1?'sesgada+':s<-1?'sesgada-':Math.abs(s)>0.5?'leve':'simétrica';return`<span class="chip ${cls}">${s} <i style="font-size:9px">${lbl}</i></span>`;}
+function kurtChip(k){const cls=Math.abs(k)>3?'cr':Math.abs(k)>1?'ca':'cg';const lbl=k>3?'lepto':k<-3?'plati':'meso';return`<span class="chip ${cls}">${k} <i style="font-size:9px">${lbl}</i></span>`;}
+
+// ══════════ VISUALIZACIONES ══════════
+async function loadViz(dsId){
+  const c=document.getElementById('viz-content');
+  c.innerHTML='<div class="loading"><div class="spin-d"></div>Generando visualizaciones…</div>';
+  const {ok,data}=await apiFetch(`/archivos/${dsId}/reporte/`);
+  if(!ok){c.innerHTML='<div class="al al-er">Error</div>';return;}
+  const numCols=data.columnas.filter(c=>c.histograma&&Object.keys(c.histograma||{}).length>0&&!c.es_columna_id);
+  const catCols=data.columnas.filter(c=>c.top_valores&&c.top_valores.length>0&&!c.es_columna_id);
+  if(!numCols.length&&!catCols.length){c.innerHTML='<div class="empty"><div class="empty-ic">📊</div><p>Sin datos para visualizar</p></div>';return;}
+
+  let rows=[];
+  if(numCols.length) rows.push('<div class="sec-title" style="margin-top:0">📈 Variables Numéricas — Histograma · QQ-Plot · Boxplot</div>');
+  numCols.slice(0,6).forEach((col,i)=>{
+    rows.push(`<div class="g3" style="margin-bottom:16px">
+      <div class="card card-sm">
+        <div class="ct" style="font-size:12px;margin-bottom:8px">📊 ${col.nombre} — Histograma</div>
+        <div style="position:relative;height:180px"><canvas id="hist-${i}"></canvas></div>
+        ${col.normalidad?`<div style="margin-top:6px;font-size:10.5px;color:var(--ink3)">${col.normalidad.test}: p=${col.normalidad.p_valor} · <b>${col.normalidad.conclusion}</b></div>`:''}
+      </div>
+      <div class="card card-sm">
+        <div class="ct" style="font-size:12px;margin-bottom:8px">📉 ${col.nombre} — QQ-Plot</div>
+        <div style="position:relative;height:180px"><canvas id="qq-${i}"></canvas></div>
+        ${col.qq_datos&&col.qq_datos.r_cuadrado!==undefined?`<div style="margin-top:6px;font-size:10.5px;color:var(--ink3)">R²=${col.qq_datos.r_cuadrado} — ${col.qq_datos.r_cuadrado>0.95?'✅ Buen ajuste normal':'⚠️ Desviación de normalidad'}</div>`:''}
+      </div>
+      <div class="card card-sm">
+        <div class="ct" style="font-size:12px;margin-bottom:8px">📦 ${col.nombre} — Boxplot</div>
+        <div style="position:relative;height:180px"><canvas id="bp-${i}"></canvas></div>
+        ${col.boxplot_datos?`<div style="margin-top:6px;font-size:10.5px;color:var(--ink3)">Q1=${col.boxplot_datos.q1} · Med=${col.boxplot_datos.mediana} · Q3=${col.boxplot_datos.q3} · <b>${col.boxplot_datos.n_outliers} outlier(s)</b></div>`:''}
+      </div>
+    </div>`);
+  });
+
+  if(catCols.length){
+    rows.push('<div class="sec-title">🔤 Variables Categóricas — Distribución</div>');
+    rows.push('<div class="g2">');
+    catCols.slice(0,6).forEach((col,i)=>rows.push(`<div class="card card-sm"><div class="ct" style="font-size:12px;margin-bottom:8px">🔤 ${col.nombre}</div><div style="position:relative;height:180px"><canvas id="cat-${i}"></canvas></div></div>`));
+    rows.push('</div>');
+  }
+  c.innerHTML=rows.join('');
+
+  function cc(id,i){const c=document.getElementById(id);return c;}
+  function clr(i,a){const h=PALETTE[i%PALETTE.length];const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
+
+  requestAnimationFrame(()=>{
+    numCols.slice(0,6).forEach((col,i)=>{
+      const h=col.histograma;
+      if(h&&h.counts){const ctx=document.getElementById(`hist-${i}`);if(ctx)new Chart(ctx,{type:'bar',data:{labels:h.labels,datasets:[{data:h.counts,backgroundColor:clr(i,.75),borderRadius:4,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true}}}});}
+      const qq=col.qq_datos;
+      if(qq&&qq.teoricos&&qq.teoricos.length){
+        const ctx=document.getElementById(`qq-${i}`);
+        if(ctx){
+          const mn=Math.min(...qq.teoricos),mx=Math.max(...qq.teoricos);
+          new Chart(ctx,{type:'scatter',data:{datasets:[
+            {label:'Datos',data:qq.teoricos.map((x,j)=>({x,y:qq.observados[j]})),backgroundColor:clr(i,.65),pointRadius:3},
+            {label:'Normal',data:[{x:mn,y:mn*qq.linea_slope+qq.linea_intercept},{x:mx,y:mx*qq.linea_slope+qq.linea_intercept}],type:'line',borderColor:'#e11d48',borderDash:[4,4],pointRadius:0,borderWidth:1.5,fill:false}
+          ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Teóricos',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}},y:{title:{display:true,text:'Observados',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+        }
+      }
+      const bp=col.boxplot_datos;
+      if(bp){
+        const ctx=document.getElementById(`bp-${i}`);
+        if(ctx) new Chart(ctx,{type:'bar',data:{labels:[col.nombre],datasets:[
+          {label:'IQR',data:[[bp.q1,bp.q3]],backgroundColor:clr(i,.5),borderColor:clr(i,1),borderWidth:1.5,borderRadius:4},
+          {label:'Outliers',data:bp.outliers.slice(0,20).map(v=>({x:col.nombre,y:v})),type:'scatter',backgroundColor:'#e11d48',pointRadius:4}
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'rgba(0,0,0,.04)'},beginAtZero:false}}}});
+      }
+    });
+    catCols.slice(0,6).forEach((col,i)=>{
+      const ctx=document.getElementById(`cat-${i}`);
+      if(ctx&&col.top_valores) new Chart(ctx,{type:'bar',data:{
+        labels:col.top_valores.map(v=>v.valor.length>15?v.valor.substring(0,15)+'…':v.valor),
+        datasets:[{data:col.top_valores.map(v=>v.frecuencia),backgroundColor:col.top_valores.map((_,j)=>PALETTE[j%PALETTE.length]),borderRadius:4,borderWidth:0}]
+      },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true},y:{grid:{display:false}}}}});
+    });
+  });
+}
+
+// ══════════ ENCUESTA FORMULARIO ══════════
+function selLikert(pid,val,btn){
+  likertVals[pid]=val;
+  const row=document.getElementById('lk-'+pid);
+  row.querySelectorAll('.likert-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById('err-'+pid).style.display='none';
+  document.getElementById('bloque-'+pid).style.borderColor='var(--teal)';
+}
+
+function selBinary(pid,val,btn){
+  binaryVals[pid]=val;
+  const row=document.getElementById('bin-'+pid);
+  row.querySelectorAll('.binary-btn').forEach(b=>b.classList.remove('sel-si','sel-no'));
+  btn.classList.add(val==='Si'?'sel-si':'sel-no');
+  document.getElementById('err-'+pid).style.display='none';
+  document.getElementById('bloque-'+pid).style.borderColor='var(--teal)';
+}
+
+function loadExampleEnc(){
+  document.getElementById('f-nom').value=NOMBRES[Math.floor(Math.random()*NOMBRES.length)];
+  document.getElementById('f-edad').value=Math.floor(Math.random()*50)+18;
+  document.getElementById('f-gen').value=['Masculino','Femenino','Otro'][Math.floor(Math.random()*3)];
+  document.getElementById('f-est').value=Math.floor(Math.random()*6)+1;
+  document.getElementById('f-dep').value=DEPTOS_RAND[Math.floor(Math.random()*DEPTOS_RAND.length)];
+  document.getElementById('f-edu').value=['Universitario','Posgrado','Técnico','Secundaria'][Math.floor(Math.random()*4)];
+  document.getElementById('f-can').value=['digital','presencial','telefónico'][Math.floor(Math.random()*3)];
+  // Likert aleatorios
+  ['P01','P02','P03','P04'].forEach(pid=>{
+    const v=Math.floor(Math.random()*5)+1;
+    const btn=document.querySelector(`#lk-${pid} .likert-btn:nth-child(${v})`);
+    if(btn) selLikert(pid,v,btn);
+  });
+  // Binary aleatorios
+  ['P05','P06'].forEach(pid=>{
+    const v=Math.random()>0.5?'Si':'No';
+    const btn=document.querySelector(`#bin-${pid} .binary-btn:nth-child(${v==='Si'?1:2})`);
+    if(btn) selBinary(pid,v,btn);
+  });
+  document.getElementById('txt-P07').value='Buen servicio en general, pero puede mejorar los tiempos de respuesta.';
+  respMap['P07']='Buen servicio en general, pero puede mejorar los tiempos de respuesta.';
+}
+
+function clearEncForm(){
+  ['f-nom','f-edad'].forEach(id=>document.getElementById(id).value='');
+  ['f-gen','f-est','f-edu','f-dep','f-can'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('txt-P07').value=''; respMap={P07:null};
+  likertVals={}; binaryVals={};
+  document.querySelectorAll('.likert-btn').forEach(b=>b.classList.remove('sel'));
+  document.querySelectorAll('.binary-btn').forEach(b=>b.classList.remove('sel-si','sel-no'));
+  document.querySelectorAll('.pregunta-bloque').forEach(b=>b.style.borderColor='');
+  document.querySelectorAll('.pregunta-err').forEach(e=>e.style.display='none');
+}
+
+async function submitEnc(){
+  const nom=document.getElementById('f-nom').value.trim();
+  const edad=parseInt(document.getElementById('f-edad').value);
+  const gen=document.getElementById('f-gen').value||null;
+  const est=parseInt(document.getElementById('f-est').value);
+  const edu=document.getElementById('f-edu').value||null;
+  const dep=document.getElementById('f-dep').value;
+  const can=document.getElementById('f-can').value||null;
+  if(!nom||!dep||!est){alertEl('alert-enc','er','⚠️ Nombre, departamento y estrato son obligatorios.');return;}
+
+  // Validar preguntas requeridas
+  let valid=true;
+  ['P01','P02','P03','P04'].forEach(pid=>{
+    if(!likertVals[pid]){document.getElementById('err-'+pid).style.display='block';document.getElementById('bloque-'+pid).style.borderColor='var(--rose)';valid=false;}
+  });
+  ['P05','P06'].forEach(pid=>{
+    if(!binaryVals[pid]){document.getElementById('err-'+pid).style.display='block';document.getElementById('bloque-'+pid).style.borderColor='var(--rose)';valid=false;}
+  });
+  if(!valid){alertEl('alert-enc','er','⚠️ Completa todas las preguntas obligatorias (marcadas con *).');return;}
+
+  const respuestas=[
+    {pregunta_id:'P01',tipo_pregunta:'likert',valor:likertVals['P01'],comentario:'Shopping_Experience'},
+    {pregunta_id:'P02',tipo_pregunta:'likert',valor:likertVals['P02'],comentario:'Product_Quality'},
+    {pregunta_id:'P03',tipo_pregunta:'likert',valor:likertVals['P03'],comentario:'Delivery_Speed'},
+    {pregunta_id:'P04',tipo_pregunta:'likert',valor:likertVals['P04'],comentario:'Customer_Service'},
+    {pregunta_id:'P05',tipo_pregunta:'binario',valor:binaryVals['P05'],comentario:'Return_Experience'},
+    {pregunta_id:'P06',tipo_pregunta:'binario',valor:binaryVals['P06'],comentario:'Recommendation'},
+  ];
+  if(respMap['P07']) respuestas.push({pregunta_id:'P07',tipo_pregunta:'texto',valor:respMap['P07'],comentario:'Comments'});
+
+  const payload={
+    encuestado:{nombre:nom,edad,genero:gen,estrato:est,departamento:dep,nivel_educativo:edu},
+    respuestas,canal_recoleccion:can
+  };
+  const btn=document.getElementById('btn-sub');btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  const {ok,status,data}=await apiFetch('/encuestas/',{method:'POST',body:JSON.stringify(payload)});
+  btn.innerHTML='✓ Registrar Encuesta';btn.disabled=false;
+  if(ok){
+    alertEl('alert-enc','ok',`✅ Encuesta registrada. UUID: <code>${(data.id||'').substring(0,8)}…</code>`);
+    clearEncForm();
+  }else{
+    const msgs=(data?.errores||[]).map(e=>`<b>${e.campo}:</b> ${e.mensaje}`).join('<br/>')||data?.mensaje_general||'Error desconocido';
+    alertEl('alert-enc','er',`❌ HTTP ${status}:<br/>${msgs}`);
+  }
+}
+
+// ══════════ LISTA ══════════
+async function loadList(){
+  const c=document.getElementById('list-content');
+  c.innerHTML='<div class="loading"><div class="spin-d"></div>Cargando…</div>';
+  const dep=document.getElementById('filt-dep').value.trim();
+  const {ok,data}=await apiFetch(`/encuestas/?limit=200${dep?'&departamento='+encodeURIComponent(dep):''}`);
+  if(!ok||!Array.isArray(data)){c.innerHTML='<div class="al al-er">Error</div>';return;}
+  if(!data.length){c.innerHTML='<div class="empty"><div class="empty-ic">📋</div><p>Sin encuestas registradas</p></div>';return;}
+  c.innerHTML=`<div class="tw"><table>
+    <thead><tr><th>ID</th><th>Nombre</th><th>Edad</th><th>Departamento</th><th>Respuestas</th><th>Fecha</th><th></th></tr></thead>
+    <tbody>${data.map(e=>`<tr>
+      <td><code style="font-size:10px">${e.id.substring(0,8)}…</code></td>
+      <td><b>${e.nombre_encuestado}</b></td><td>${e.edad}</td>
+      <td><span class="chip ct_">${e.departamento}</span></td>
+      <td><span class="chip cs_">${e.n_respuestas}</span></td>
+      <td style="font-size:11px">${new Date(e.fecha_ingreso).toLocaleDateString('es-CO')}</td>
+      <td><button class="btn btn-s btn-xs" onclick="verEnc('${e.id}')">Ver</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div><div style="margin-top:8px;font-size:11px;color:var(--ink4)">${data.length} registro(s)</div>`;
+}
+
+async function verEnc(id){
+  const {ok,data}=await apiFetch(`/encuestas/${id}`);if(!ok)return;
+  const PREGS={P01:'Experiencia de Compra',P02:'Calidad del Producto',P03:'Velocidad de Entrega',P04:'Atención al Cliente',P05:'Experiencia Devolución',P06:'Recomendación',P07:'Comentarios'};
+  document.getElementById('modal-title').textContent='Encuesta — '+data.encuestado.nombre;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="fr" style="margin-bottom:8px"><div><b>Edad:</b> ${data.encuestado.edad}</div><div><b>Estrato:</b> ${data.encuestado.estrato}</div></div>
+    <div style="margin-bottom:6px"><b>Departamento:</b> ${data.encuestado.departamento} · <b>Género:</b> ${data.encuestado.genero??'—'}</div>
+    <div style="margin-bottom:6px"><b>Canal:</b> ${data.canal_recoleccion??'—'} · <b>Ingreso:</b> ${new Date(data.fecha_ingreso).toLocaleString('es-CO')}</div>
+    <div class="sec-title" style="margin-top:14px">Respuestas</div>
+    <div class="tw"><table><thead><tr><th>Pregunta</th><th>Tipo</th><th>Valor</th></tr></thead>
+    <tbody>${data.respuestas.map(r=>`<tr>
+      <td><code>${r.pregunta_id}</code> ${PREGS[r.pregunta_id]||''}</td>
+      <td><span class="chip ca">${r.tipo_pregunta}</span></td>
+      <td>${r.tipo_pregunta==='likert'?renderStars(r.valor):(r.valor??'<i style="color:var(--ink4)">null</i>')}
+      ${r.tipo_pregunta==='likert'&&r.valor?`<span class="chip cs_" style="margin-left:4px">${r.valor}/5</span>`:''}</td>
+    </tr>`).join('')}</tbody></table></div>
+    <div style="margin-top:10px;font-size:10.5px;color:var(--ink4)">UUID: <code>${data.id}</code></div>`;
+  document.getElementById('btn-del').onclick=async()=>{
+    if(!confirm('¿Eliminar?'))return;
+    await apiFetch(`/encuestas/${id}`,{method:'DELETE'});
+    document.getElementById('modal').classList.remove('open');loadList();
+  };
+  document.getElementById('modal').classList.add('open');
+}
+function renderStars(v){if(!v)return'—';const stars='★'.repeat(v)+'☆'.repeat(5-v);return`<span style="color:#f59e0b;font-size:14px;letter-spacing:1px">${stars}</span>`;}
+
+// ══════════ ESTADÍSTICAS API ══════════
+let lastStatsData = null;
+async function loadApiStats(){
+  const {ok,data}=await apiFetch('/encuestas/estadisticas/');
+  if(!ok||data.total_encuestas===0){
+    document.getElementById('api-stats-sg').innerHTML='<div class="al al-in" style="width:100%">ℹ️ No hay encuestas. Registra algunas desde "Registrar Encuesta".</div>';return;
+  }
+  lastStatsData = data;
+  document.getElementById('api-stats-sg').innerHTML=`
+    <div class="sc"><div class="si si-t">📝</div><div><div class="sl">Total</div><div class="sv">${data.total_encuestas}</div></div></div>
+    <div class="sc"><div class="si si-a">📅</div><div><div class="sl">Edad promedio</div><div class="sv">${data.edad_promedio}</div><div class="ss">años · rango ${data.edad_min}–${data.edad_max}</div></div></div>
+    <div class="sc"><div class="si si-v">📍</div><div><div class="sl">Departamentos</div><div class="sv">${Object.keys(data.distribucion_departamento).length}</div></div></div>
+    <div class="sc"><div class="si si-s">💬</div><div><div class="sl">Resp/encuesta</div><div class="sv">${data.promedio_respuestas_por_encuesta}</div></div></div>
+  `;
+  // Demográfico
+  mkChart('c-est','bar',data.distribucion_estrato,'Estrato',false);
+  mkChart('c-gen','doughnut',data.distribucion_genero,'Género',false);
+  const topD=Object.fromEntries(Object.entries(data.distribucion_departamento).sort((a,b)=>b[1]-a[1]).slice(0,8));
+  mkChart('c-dep','bar',topD,'Departamentos',true);
+  if(Object.keys(data.pct_nulos_por_pregunta).length)
+    mkChart('c-nul','bar',data.pct_nulos_por_pregunta,'% Nulos',false);
+
+  // Histograma edades
+  renderEdadStats(data);
+  // Likert
+  renderLikertTab(data);
+}
+
+function renderEdadStats(data){
+  const el=document.getElementById('edad-stats');if(!el)return;
+  const n=data.total_encuestas,avg=data.edad_promedio,mn=data.edad_min,mx=data.edad_max;
+  el.innerHTML=`
+    <div class="sc" style="padding:12px"><div class="si si-a" style="width:32px;height:32px;font-size:13px">📊</div>
+      <div><div class="sl">Media</div><div class="sv" style="font-size:18px">${avg}</div><div class="ss">años</div></div></div>
+    <div class="sc" style="padding:12px"><div class="si si-t" style="width:32px;height:32px;font-size:13px">↔️</div>
+      <div><div class="sl">Rango</div><div class="sv" style="font-size:18px">${mn}–${mx}</div><div class="ss">${mx-mn} años de amplitud</div></div></div>
+    <div class="sc" style="padding:12px"><div class="si si-g" style="width:32px;height:32px;font-size:13px">👥</div>
+      <div><div class="sl">Encuestas</div><div class="sv" style="font-size:18px">${n}</div></div></div>
+  `;
+}
+
+function renderLikertTab(data){
+  const el=document.getElementById('likert-content');if(!el)return;
+  const pnulos=data.pct_nulos_por_pregunta||{};
+  // Distribución de respuestas por pregunta Likert
+  const PREGS={P01:'Experiencia de Compra',P02:'Calidad del Producto',P03:'Velocidad de Entrega',P04:'Atención al Cliente'};
+  const pids=Object.keys(PREGS);
+  if(!pids.some(p=>data.hasOwnProperty&&true)){
+    el.innerHTML='<div class="al al-in">Las distribuciones Likert se calculan a partir del dataset. Registra encuestas primero.</div>';return;
+  }
+  // Build from pct_nulos and total
+  const rows=pids.map((pid,i)=>`
+    <div class="card card-sm" style="margin-bottom:0">
+      <div class="ct" style="font-size:12px;margin-bottom:8px">⭐ ${PREGS[pid]} (${pid})</div>
+      <div style="position:relative;height:130px"><canvas id="lk-dist-${pid}"></canvas></div>
+      <div style="margin-top:6px;font-size:10.5px;color:var(--ink3)">% nulos: <b>${pnulos[pid]||0}%</b></div>
+    </div>`).join('');
+  el.innerHTML=`<div class="g2">${rows}</div>
+    <div class="al al-in" style="margin-top:12px">ℹ️ Registra más encuestas para ver distribuciones de respuesta detalladas por cada pregunta Likert.</div>`;
+}
+
+function mkChart(id,type,obj,lbl,horizontal){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id);if(!ctx)return;
+  const labels=Object.keys(obj).map(String),vals=Object.values(obj).map(Number);
+  charts[id]=new Chart(ctx,{type,data:{labels,datasets:[{label:lbl,data:vals,
+    backgroundColor:type==='doughnut'?PALETTE:labels.map((_,i)=>{const h=PALETTE[i%PALETTE.length];const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`rgba(${r},${g},${b},.75)`;}),
+    borderRadius:type!=='doughnut'?5:0,borderWidth:0}]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:horizontal?'y':'x',
+    plugins:{legend:{display:type==='doughnut'}},
+    scales:type!=='doughnut'?{x:{grid:{color:'rgba(0,0,0,.04)'}},y:{grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true}}:{}}});
+}
+
+// ── Correlaciones y Outliers desde reporte de archivo ──────────────────────
+async function loadAdvancedStats(){
+  if(!currentDatasetId){
+    document.getElementById('corr-content').innerHTML='<div class="al al-wa">⚠️ Carga un archivo CSV primero para ver correlaciones y outliers del dataset.</div>';
+    document.getElementById('outliers-content').innerHTML='<div class="al al-wa">⚠️ Carga un archivo CSV primero.</div>';
+    return;
+  }
+  // Correlaciones
+  const {ok,data}=await apiFetch(`/archivos/${currentDatasetId}/reporte/`);
+  if(!ok){return;}
+  renderCorrelacion(data.correlacion);
+  renderOutliers(data.columnas);
+  renderQQPlots(data.columnas);
+}
+
+function renderCorrelacion(corr){
+  const el=document.getElementById('corr-content');if(!el)return;
+  if(!corr||!corr.disponible){el.innerHTML=`<div class="al al-in">${corr?.razon||'Sin datos de correlación'}</div>`;return;}
+  const cols=corr.columnas;
+  // Heat map as table
+  const getCellColor=(r)=>{
+    if(r===1)return'background:#0f766e;color:#fff';
+    const abs=Math.abs(r);
+    if(r>0){const g=Math.round(20+abs*220),b=Math.round(150-abs*100);return`background:rgba(13,${g},${b},${abs*.8+.1});color:${abs>0.5?'#fff':'var(--ink)'}`}
+    else{const rv=Math.round(200+abs*55);return`background:rgba(${rv},30,70,${abs*.7+.1});color:${abs>0.5?'#fff':'var(--ink)'}`}
+  };
+  const matrix=`<div class="tw" style="margin-bottom:16px;overflow-x:auto">
+    <table style="font-size:11px">
+      <thead><tr><th></th>${cols.map(c=>`<th style="max-width:80px;overflow:hidden">${c}</th>`).join('')}</tr></thead>
+      <tbody>${cols.map(r=>`<tr><td><b>${r}</b></td>${cols.map(c=>`<td style="text-align:center;font-weight:600;${getCellColor(corr.matriz[r][c])}">${corr.matriz[r][c]}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table></div>`;
+
+  const topPairs=corr.pares_ordenados.slice(0,10);
+  const pairsHtml=`<div class="sec-title">🔝 Top Correlaciones (ordenadas por |r|)</div>
+    <div class="tw"><table><thead><tr><th>Variable 1</th><th>Variable 2</th><th>r de Pearson</th><th>p-valor</th><th>Fuerza</th><th>Dirección</th><th>Significativa</th></tr></thead>
+    <tbody>${topPairs.map(p=>`<tr>
+      <td><code>${p.var1}</code></td><td><code>${p.var2}</code></td>
+      <td><span class="chip ${Math.abs(p.r)>=0.7?'cr':Math.abs(p.r)>=0.4?'ca':'cg'}">${p.r}</span></td>
+      <td><code>${p.p_valor}</code></td>
+      <td><span class="chip ${p.fuerza==='fuerte'?'cr':p.fuerza==='moderada'?'ca':'cg'}">${p.fuerza}</span></td>
+      <td>${p.direccion==='positiva'?'↗️ positiva':'↘️ negativa'}</td>
+      <td>${p.significativa?'<span class="chip cg">✓ p&lt;0.05</span>':'<span class="chip cv">✗ no sig.</span>'}</td>
+    </tr>`).join('')}</tbody></table></div>
+    <div class="al al-in" style="margin-top:10px">📊 ${corr.n_significativas} de ${corr.pares_ordenados.length} pares son estadísticamente significativos (α=0.05)</div>`;
+
+  // Scatter chart for top pair
+  let scatterHtml='';
+  if(topPairs.length>0&&topPairs[0].significativa){
+    const tp=topPairs[0];
+    scatterHtml=`<div class="card card-sm" style="margin-top:16px">
+      <div class="ct" style="font-size:12px;margin-bottom:8px">📉 Scatter: ${tp.var1} vs ${tp.var2} (r=${tp.r})</div>
+      <div style="position:relative;height:200px"><canvas id="scatter-corr"></canvas></div>
+    </div>`;
+  }
+
+  el.innerHTML=`<div class="card card-sm"><div class="ct" style="margin-bottom:12px">🗺️ Matriz de Correlación de Pearson</div>${matrix}</div>${pairsHtml}${scatterHtml}`;
+
+  // Draw scatter for top pair if available - needs raw data
+  if(topPairs.length>0) setTimeout(()=>drawTopScatter(topPairs[0],corr),100);
+}
+
+async function drawTopScatter(pair,corr){
+  const ctx=document.getElementById('scatter-corr');if(!ctx)return;
+  const {ok,data}=await apiFetch(`/archivos/${currentDatasetId}/datos/?limit=200`).catch(()=>({ok:false}));
+  if(!ok||!data)return;
+  const pts=data.map(r=>({x:r[pair.var1],y:r[pair.var2]})).filter(p=>p.x!=null&&p.y!=null);
+  if(charts['scatter-corr'])charts['scatter-corr'].destroy();
+  charts['scatter-corr']=new Chart(ctx,{type:'scatter',data:{datasets:[
+    {label:`${pair.var1} vs ${pair.var2}`,data:pts,backgroundColor:'rgba(13,148,136,.45)',pointRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{title:{display:true,text:pair.var1,font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}},
+            y:{title:{display:true,text:pair.var2,font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}}}}});
+}
+
+function renderOutliers(columnas){
+  const el=document.getElementById('outliers-content');if(!el)return;
+  const numCols=columnas.filter(c=>c.outliers&&!c.es_columna_id&&c.outliers.n_outliers!==undefined);
+  if(!numCols.length){el.innerHTML='<div class="empty">Sin variables numéricas con análisis de outliers</div>';return;}
+
+  const totalOut=numCols.reduce((s,c)=>s+c.outliers.n_outliers,0);
+  const summary=`<div class="sg" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:16px">
+    ${numCols.map(col=>`<div class="sc" style="padding:12px">
+      <div class="si si-${col.outliers.n_outliers>0?'r':'g'}" style="width:32px;height:32px;font-size:13px">${col.outliers.n_outliers>0?'⚠️':'✅'}</div>
+      <div><div class="sl">${col.nombre}</div>
+        <div class="sv" style="font-size:18px">${col.outliers.n_outliers}</div>
+        <div class="ss">${col.outliers.pct_outliers}% · IQR</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+
+  const details=numCols.map(col=>`
+    <div class="col-card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <b style="font-size:13px">${col.nombre}</b>
+        <span class="chip ${col.outliers.n_outliers>0?'cr':'cg'}">${col.outliers.n_outliers} outliers (${col.outliers.pct_outliers}%)</span>
+        <span class="chip ca">IQR: [${col.outliers.q1}, ${col.outliers.q3}]</span>
+        <span class="chip cs_">Límites: [${col.outliers.limite_inferior}, ${col.outliers.limite_superior}]</span>
+      </div>
+      ${col.outliers.valores_extremos&&col.outliers.valores_extremos.length?`
+        <div style="font-size:11.5px;color:var(--ink3);margin-bottom:6px">Valores extremos: <code>${col.outliers.valores_extremos.join(', ')}</code></div>
+      `:''}
+      ${col.normalidad?`<div style="font-size:11px;color:var(--ink3)">${col.normalidad.test}: p=${col.normalidad.p_valor} — <b>${col.normalidad.conclusion}</b></div>`:''}
+    </div>`).join('');
+
+  // Bar chart outliers por columna
+  el.innerHTML=`${summary}
+    <div class="card card-sm" style="margin-bottom:14px">
+      <div class="ct" style="font-size:12px;margin-bottom:8px">📊 Outliers por Variable (método IQR + Z-score)</div>
+      <div style="position:relative;height:200px"><canvas id="c-outliers-bar"></canvas></div>
+    </div>
+    <div class="sec-title">📋 Detalle por Variable</div>${details}
+    <div class="al al-in">🔍 <b>Método:</b> IQR (Q1-1.5×IQR, Q3+1.5×IQR) + Z-score (|z|>3). Los outliers no se eliminan automáticamente — se reportan para decisión del analista.</div>`;
+
+  // Render bar
+  setTimeout(()=>{
+    const ctx=document.getElementById('c-outliers-bar');
+    if(ctx&&charts['c-outliers-bar'])charts['c-outliers-bar'].destroy();
+    if(ctx)charts['c-outliers-bar']=new Chart(ctx,{type:'bar',
+      data:{labels:numCols.map(c=>c.nombre),
+            datasets:[
+              {label:'Outliers IQR',data:numCols.map(c=>c.outliers.n_outliers),backgroundColor:'rgba(225,29,72,.7)',borderRadius:4,borderWidth:0},
+              {label:'Outliers Z-score',data:numCols.map(c=>c.outliers.n_outliers_zscore||0),backgroundColor:'rgba(124,58,237,.5)',borderRadius:4,borderWidth:0}
+            ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,position:'top'}},
+        scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true,title:{display:true,text:'N° outliers',font:{size:10}}}}}});
+  },100);
+}
+
+// ══════════ TABS ══════════
+function showTab(id, groupId, btn) {
+  const group = document.getElementById(groupId);
+  const parent = group.closest('.panel') || document.body;
+  parent.querySelectorAll('.tp').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById(id);
+  if (tab) tab.classList.add('active');
+  group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ══════════ QQ-PLOTS ══════════
+function renderQQPlots(columnas) {
+  const el = document.getElementById('qqplot-content'); if (!el) return;
+  const numCols = columnas.filter(c => c.qq_datos && c.qq_datos.teoricos && c.qq_datos.teoricos.length > 0 && !c.es_columna_id);
+  if (!numCols.length) { el.innerHTML = '<div class="empty"><div class="empty-ic">📉</div><p>Sin variables numéricas con datos suficientes para QQ-plot</p></div>'; return; }
+
+  const rows = numCols.slice(0, 8).map((col, i) => `
+    <div class="card card-sm">
+      <div class="ct" style="font-size:12px;margin-bottom:6px">📉 ${col.nombre}</div>
+      <div style="position:relative;height:200px"><canvas id="qq-stat-${i}"></canvas></div>
+      <div style="margin-top:6px;font-size:10.5px;color:var(--ink3);display:flex;gap:12px;flex-wrap:wrap">
+        ${col.qq_datos.r_cuadrado !== undefined ? `<span>R² = <b>${col.qq_datos.r_cuadrado}</b> — ${col.qq_datos.r_cuadrado > 0.97 ? '<span class="chip cg">✅ Normal</span>' : col.qq_datos.r_cuadrado > 0.90 ? '<span class="chip ca">⚠️ Leve desviación</span>' : '<span class="chip cr">❌ No normal</span>'}</span>` : ''}
+        ${col.normalidad ? `<span>${col.normalidad.test}: p = <b>${col.normalidad.p_valor}</b></span>` : ''}
+        ${col.skewness !== null && col.skewness !== undefined ? `<span>Skewness: <b>${col.skewness}</b></span>` : ''}
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="al al-in" style="margin-bottom:14px">📐 <b>QQ-Plot (Quantile-Quantile):</b> Si los puntos siguen la línea roja, los datos se distribuyen normalmente. Las desviaciones en los extremos indican colas pesadas (kurtosis) o asimetría (skewness).</div>
+    <div class="g2">${rows}</div>`;
+
+  requestAnimationFrame(() => {
+    numCols.slice(0, 8).forEach((col, i) => {
+      const qq = col.qq_datos; if (!qq || !qq.teoricos) return;
+      const ctx = document.getElementById('qq-stat-' + i); if (!ctx) return;
+      const mn = Math.min(...qq.teoricos), mx = Math.max(...qq.teoricos);
+      const lineData = [{x: mn, y: mn * qq.linea_slope + qq.linea_intercept}, {x: mx, y: mx * qq.linea_slope + qq.linea_intercept}];
+      const h = PALETTE[i % PALETTE.length];
+      const r = parseInt(h.slice(1,3),16), g2 = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16);
+      const clr = `rgba(${r},${g2},${b},0.65)`;
+      new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets: [
+          { label: 'Datos', data: qq.teoricos.map((x, j) => ({x, y: qq.observados[j]})), backgroundColor: clr, pointRadius: 3, pointHoverRadius: 5 },
+          { label: 'Línea normal', data: lineData, type: 'line', borderColor: '#e11d48', borderDash: [5, 3], pointRadius: 0, borderWidth: 2, fill: false }
+        ]},
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `(${ctx.parsed.x.toFixed(2)}, ${ctx.parsed.y.toFixed(2)})` }}},
+          scales: {
+            x: { title: { display: true, text: 'Cuantiles teóricos (Normal)', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,.04)' }},
+            y: { title: { display: true, text: 'Cuantiles observados', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,.04)' }}
+          }}
+      });
+    });
+  });
+}
+
+// ══════════ EXPORTAR ══════════
+async function loadFuentes(){
+  const el=document.getElementById('fuentes-list');
+  el.innerHTML='<div class="loading"><div class="spin-d"></div>Cargando…</div>';
+  const {ok,data}=await apiFetch('/exportar/disponibles/');
+  if(!ok){el.innerHTML='<div class="al al-er">Error cargando fuentes</div>';return;}
+  if(!data.fuentes.length){el.innerHTML='<div class="empty"><div class="empty-ic">📦</div><p>Sin datos disponibles. Carga un archivo o registra encuestas.</p></div>';return;}
+  el.innerHTML=data.fuentes.map(f=>`
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;opacity:${f.disponible?1:.5}">
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:16px">${f.tipo==='dataset'?'📊':'📋'}</span>
+          <b style="font-size:13px">${f.nombre}</b>
+          <span class="chip ${f.tipo==='dataset'?'cs_':'ct_'}">${f.tipo}</span>
+          ${f.disponible?'':'<span class="chip cr">sin datos</span>'}
+        </div>
+        <div style="font-size:11.5px;color:var(--ink3)">${f.descripcion}</div>
+        <div style="margin-top:5px;font-size:11px;color:var(--ink4)">Formatos: ${f.formatos.map(fm=>`<code>${fm}</code>`).join(' · ')}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${f.formatos.includes('csv')?`<button class="btn btn-p btn-sm" onclick="exportarFuente('${f.id}','csv')" ${!f.disponible?'disabled':''}>⬇️ CSV</button>`:''}
+        ${f.formatos.includes('json')?`<button class="btn btn-s btn-sm" onclick="exportarFuente('${f.id}','json')" ${!f.disponible?'disabled':''}>⬇️ JSON</button>`:''}
+        ${f.formatos.includes('pickle')?`<button class="btn btn-s btn-sm" onclick="exportarFuente('${f.id}','pickle')" ${!f.disponible?'disabled':''}>⬇️ Pickle</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
+async function exportarFuente(fuenteId,fmt){
+  const ext=fmt==='pickle'?'pkl':fmt;
+  const nombre=fuenteId==='encuestas_api'?`encuestas.${ext}`:`dataset_${fuenteId.substring(0,6)}.${ext}`;
+  const r=await fetch(`${API}/exportar/?formato=${fmt}&fuente=${encodeURIComponent(fuenteId)}`);
+  if(!r.ok){alertEl('alert-export','er','❌ Error al exportar. Verifica que haya datos disponibles.');return;}
+  const blob=await r.blob(),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=nombre;a.click();URL.revokeObjectURL(url);
+  alertEl('alert-export','ok',`✅ Descargando ${nombre}`);
+}
+
+// ══════════ DOCS ══════════
+function renderDocs(){
+  document.getElementById('payload-ex').textContent=JSON.stringify({
+    encuestado:{nombre:"María García",edad:34,genero:"Femenino",estrato:3,departamento:"Cundinamarca"},
+    respuestas:[
+      {pregunta_id:"P01",tipo_pregunta:"likert",valor:4,comentario:"Shopping_Experience"},
+      {pregunta_id:"P02",tipo_pregunta:"likert",valor:5,comentario:"Product_Quality"},
+      {pregunta_id:"P03",tipo_pregunta:"likert",valor:3,comentario:"Delivery_Speed"},
+      {pregunta_id:"P04",tipo_pregunta:"likert",valor:4,comentario:"Customer_Service"},
+      {pregunta_id:"P05",tipo_pregunta:"binario",valor:"Si",comentario:"Return_Experience"},
+      {pregunta_id:"P06",tipo_pregunta:"binario",valor:"Si",comentario:"Recommendation"},
+      {pregunta_id:"P07",tipo_pregunta:"texto",valor:"Excelente atención, entrega a tiempo."}
+    ],canal_recoleccion:"digital"
+  },null,2);
+  document.getElementById('error-ex').textContent=JSON.stringify({
+    status:"error",codigo_http:422,
+    mensaje_general:"Se encontraron 2 error(es) de validación.",
+    errores:[
+      {campo:"body → encuestado → edad",mensaje:"Edad 200 fuera del rango biológico [0,120]",valor_recibido:200,tipo_error:"value_error"},
+      {campo:"body → respuestas → 0 → valor",mensaje:"Valor Likert 7 fuera del rango [1,5]",valor_recibido:7,tipo_error:"value_error"}
+    ],timestamp:"2024-01-15T10:30:00Z"
+  },null,2);
+}
+</script>
+</body>
+</html>
