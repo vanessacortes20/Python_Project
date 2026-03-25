@@ -54,6 +54,10 @@ from pydantic import ValidationError
 
 # Importaciones locales
 from models import (
+    BitacoraAuditoria,
+    NivelEducativo,
+    TipoPregunta,
+    bitacora_global,
     CargaArchivoResult,
     EncuestaCompleta,
     EncuestaDB,
@@ -75,16 +79,40 @@ from services import (
 from validators import log_request, timer
 
 # ---------------------------------------------------------------------------
-# Configuración de logging
 # ---------------------------------------------------------------------------
+# Configuración de logging — consola + archivo logs/encuestas.log
+# Patrón BitacoraAuditoria de la actividad (bloque 16)
+# ---------------------------------------------------------------------------
+import os as _os
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[logging.StreamHandler(sys.stdout)],
+_LOGS_DIR = _os.path.join(_os.path.dirname(__file__), "logs")
+_os.makedirs(_LOGS_DIR, exist_ok=True)
+_LOG_FILE = _os.path.join(_LOGS_DIR, "encuestas.log")
+
+# Formato compartido: fecha | nivel | módulo | mensaje
+_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+_LOG_DATE   = "%Y-%m-%d %H:%M:%S"
+
+# Handler 1: consola (stdout — visible en uvicorn)
+_console_handler = logging.StreamHandler(sys.stdout)
+_console_handler.setLevel(logging.INFO)
+_console_handler.setFormatter(logging.Formatter(_LOG_FORMAT, _LOG_DATE))
+
+# Handler 2: archivo rotativo en logs/encuestas.log
+from logging.handlers import RotatingFileHandler as _RotFH
+_file_handler = _RotFH(
+    _LOG_FILE,
+    maxBytes=5 * 1024 * 1024,   # 5 MB por archivo
+    backupCount=3,               # conserva encuestas.log, .1, .2, .3
+    encoding="utf-8",
 )
+_file_handler.setLevel(logging.INFO)
+_file_handler.setFormatter(logging.Formatter(_LOG_FORMAT, _LOG_DATE))
+
+# Raíz del logger de la app: escribe en ambos destinos
+logging.basicConfig(level=logging.INFO, handlers=[_console_handler, _file_handler])
 logger = logging.getLogger("encuesta_api")
+logger.info("=== API iniciada — logs en: %s ===", _LOG_FILE)
 
 # ---------------------------------------------------------------------------
 # Instancia FastAPI
@@ -165,13 +193,23 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             )
         )
 
-    # Log del intento de ingesta inválido
+    # Log del intento de ingesta inválido (consola + archivo logs/encuestas.log)
     logger.warning(
         "[VALIDATION_ERROR] %s %s — %d campo(s) inválido(s): %s",
         request.method,
         request.url.path,
         len(errores),
         [e.campo for e in errores],
+    )
+    # Registrar exclusión en BitacoraAuditoria — patrón PRE 16
+    try:
+        payload_body = await request.json()
+    except Exception:
+        payload_body = {}
+    bitacora_global.registrar_exclusion(
+        payload_original=payload_body,
+        errores=[{"loc": e.campo, "msg": e.mensaje, "type": e.tipo_error} for e in errores],
+        timestamp=datetime.utcnow().isoformat(),
     )
 
     response = ErrorResponse(
@@ -246,7 +284,13 @@ async def crear_encuesta(encuesta: EncuestaCompleta):
     """
     nueva = EncuestaDB(**encuesta.model_dump())
     _store[nueva.id] = nueva
-    logger.info("Encuesta creada: id=%s, encuestado=%s", nueva.id, nueva.encuestado.nombre)
+    # Registrar en BitacoraAuditoria (patrón PRE 16)
+    bitacora_global.registrar_exito(nueva.id)
+    logger.info(
+        "[ENCUESTA CREADA] id=%s | encuestado=%s | estrato=%s | depto=%s | respuestas=%d",
+        nueva.id, nueva.encuestado.nombre, nueva.encuestado.estrato,
+        nueva.encuestado.departamento, len(nueva.respuestas)
+    )
     return nueva
 
 
@@ -288,6 +332,24 @@ async def listar_encuestas(
 
 
 @timer
+@app.get(
+    "/encuestas/bitacora/",
+    tags=["Encuestas"],
+    summary="Bitácora de auditoría (intentos válidos e inválidos)",
+    description="""
+Retorna el resumen de la BitacoraAuditoria: validaciones exitosas, exclusiones y tasa de rechazo.
+Patrón directo de BitacoraAuditoria (actividad, PRE 16).
+    """,
+)
+@timer
+async def bitacora_auditoria():
+    """
+    Expone el estado de la bitácora de auditoría en tiempo real.
+    Útil para monitorear la calidad de los datos ingresados.
+    """
+    return bitacora_global.resumen()
+
+
 @app.get(
     "/encuestas/estadisticas/",
     response_model=EstadisticasGlobales,

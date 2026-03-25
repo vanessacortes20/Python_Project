@@ -381,22 +381,23 @@ code{background:var(--surface2);border:1px solid var(--border);padding:1px 5px;b
       <!-- Datos demográficos -->
       <div class="sec-title">👤 Datos del Encuestado <span style="font-size:10px;background:#1e293b;color:#94a3b8;padding:2px 7px;border-radius:4px;letter-spacing:.3px">Pydantic · Encuestado</span></div>
       <div class="fr">
-        <div class="fg"><label>Nombre completo *</label><input id="f-nom" placeholder="María García López"/></div>
-        <div class="fg"><label>Edad [0–120] *</label><input id="f-edad" type="number" min="0" max="120" placeholder="34"/></div>
+        <div class="fg"><label>Nombre completo * <span style="font-size:10px;color:var(--ink3);font-weight:400">(nombre y apellido)</span></label><input id="f-nom" placeholder="ej: María García López" oninput="validarNombreLive(this.value)"/><div id="err-nom" style="font-size:11px;color:var(--rose);margin-top:3px;display:none">⚠️ Escribe al menos nombre y apellido (dos palabras)</div></div>
+        <div class="fg"><label>Edad [0–120] * <span style="font-size:10px;color:var(--ink3);font-weight:400">(entero)</span></label><input id="f-edad" type="text" inputmode="numeric" placeholder="34" oninput="validarEdadLive(this)"/><div id="err-edad" style="font-size:11px;color:var(--rose);margin-top:3px;display:none"></div></div>
       </div>
       <div class="fr3">
         <div class="fg"><label>Género</label>
-          <select id="f-gen"><option value="">No especificado</option><option>Masculino</option><option>Femenino</option><option>Otro</option></select>
+          <select id="f-gen"><option value="">— Seleccionar —</option><option value="No especificado">Prefiero no decirlo</option><option>Masculino</option><option>Femenino</option><option>Otro</option></select>
         </div>
-        <div class="fg"><label>Estrato [1–6] *</label>
-          <select id="f-est"><option value="">Seleccionar</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+        <div class="fg"><label>Estrato [1–6] * <span style="font-size:10px;color:var(--ink3);font-weight:400">(entero 1–6)</span></label>
+          <input id="f-est" type="text" inputmode="numeric" placeholder="1, 2, 3, 4, 5 ó 6" oninput="validarEstratoLive(this)"/>
+          <div id="err-est" style="font-size:11px;color:var(--rose);margin-top:3px;display:none"></div>
         </div>
         <div class="fg"><label>Educación</label>
-          <select id="f-edu"><option value="">Seleccionar</option><option>Primaria</option><option>Secundaria</option><option>Técnico</option><option>Tecnólogo</option><option>Universitario</option><option>Posgrado</option></select>
+          <select id="f-edu"><option value="">Seleccionar</option><option>Primaria</option><option>Secundaria</option><option>Técnico</option><option>Tecnólogo</option><option>Universitario</option><option>Posgrado</option><option>Ninguna de las anteriores</option></select>
         </div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Departamento (Colombia) *</label><select id="f-dep"></select></div>
+        <div class="fg"><label>Departamento (Colombia) *</label><select id="f-dep"><option value="">— Selecciona tu departamento —</option></select><div id="err-dep" style="font-size:11px;color:var(--rose);margin-top:3px;display:none">⚠️ Selecciona un departamento</div></div>
         <div class="fg"><label>Canal de recolección</label>
           <select id="f-can"><option value="">No especificado</option><option>digital</option><option>presencial</option><option>telefónico</option></select>
         </div>
@@ -513,8 +514,16 @@ code{background:var(--surface2);border:1px solid var(--border);padding:1px 5px;b
           <span style="background:var(--sky-l);color:#075985;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap">Texto libre</span>
           P07 · Comentarios Adicionales
         </div>
-        <div class="pregunta-desc">¿Tienes algún comentario, sugerencia o aspecto a mejorar? (opcional)</div>
-        <textarea class="pregunta-textarea" id="txt-P07" placeholder="Escribe aquí tu comentario…" oninput="respMap['P07']=this.value||null"></textarea>
+        <div class="pregunta-desc">¿Tienes algún comentario, sugerencia o aspecto a mejorar? (opcional — máximo 60 palabras)</div>
+        <textarea class="pregunta-textarea" id="txt-P07" placeholder="Escribe aquí tu comentario… (máximo 60 palabras)" oninput="validarComentario(this)"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+          <div id="err-P07" style="font-size:11px;color:var(--rose);display:none">⚠️ Límite de 60 palabras superado — se usarán solo las primeras 60</div>
+          <span id="cnt-P07" style="font-size:10.5px;color:var(--ink4);margin-left:auto">0 / 60 palabras</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <div id="err-P07" style="font-size:11px;color:var(--rose);display:none">⚠️ Máximo 60 palabras</div>
+          <div id="cnt-P07" style="font-size:10.5px;color:var(--ink4)">0 / 60 palabras</div>
+        </div>
       </div>
 
       <div class="btn-row">
@@ -692,6 +701,7 @@ const PANEL_META = {
 
 window.addEventListener('DOMContentLoaded',()=>{
   const sel=document.getElementById('f-dep');
+  // Departamentos: already has placeholder option in HTML, just append the list
   DEPTOS.forEach(d=>{const o=document.createElement('option');o.value=o.textContent=d;sel.appendChild(o);});
   ping();
   setInterval(ping,15000);
@@ -996,11 +1006,11 @@ function selBinary(pid,val,btn){
 
 function loadExampleEnc(){
   document.getElementById('f-nom').value=NOMBRES[Math.floor(Math.random()*NOMBRES.length)];
-  document.getElementById('f-edad').value=Math.floor(Math.random()*50)+18;
+  document.getElementById('f-edad').value=String(Math.floor(Math.random()*50)+18);
   document.getElementById('f-gen').value=['Masculino','Femenino','Otro'][Math.floor(Math.random()*3)];
-  document.getElementById('f-est').value=Math.floor(Math.random()*6)+1;
+  document.getElementById('f-est').value=String(Math.floor(Math.random()*6)+1);
   document.getElementById('f-dep').value=DEPTOS_RAND[Math.floor(Math.random()*DEPTOS_RAND.length)];
-  document.getElementById('f-edu').value=['Universitario','Posgrado','Técnico','Secundaria'][Math.floor(Math.random()*4)];
+  document.getElementById('f-edu').value=['Universitario','Posgrado','Técnico','Secundaria','Ninguna de las anteriores'][Math.floor(Math.random()*5)];
   document.getElementById('f-can').value=['digital','presencial','telefónico'][Math.floor(Math.random()*3)];
   // Likert aleatorios
   ['P01','P02','P03','P04'].forEach(pid=>{
@@ -1027,17 +1037,78 @@ function clearEncForm(){
   document.querySelectorAll('.binary-btn').forEach(b=>b.classList.remove('sel-si','sel-no'));
   document.querySelectorAll('.pregunta-bloque').forEach(b=>b.style.borderColor='');
   document.querySelectorAll('.pregunta-err').forEach(e=>e.style.display='none');
+  ['err-nom','err-edad','err-est','err-dep'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  const cnt=document.getElementById('cnt-P07');if(cnt)cnt.textContent='0 / 60 palabras';
+}
+
+// ── Validaciones en tiempo real ──────────────────────────────────────
+function validarEdadLive(el){
+  const v = el.value.trim();
+  const err = document.getElementById('err-edad');
+  if(!v){err.textContent='⚠️ La edad es obligatoria (entero entre 0 y 120)';err.style.display='block';return false;}
+  if(v.includes('.')||v.includes(',')){err.textContent='⚠️ La edad debe ser entero, no decimal. Ej: 34';err.style.display='block';return false;}
+  if(!/^\d+$/.test(v)){err.textContent='⚠️ La edad debe ser un número, no letras. Ej: 34';err.style.display='block';return false;}
+  const n=parseInt(v);
+  if(n<0||n>120){err.textContent=`⚠️ Edad ${n} fuera del rango biológico [0, 120]`;err.style.display='block';return false;}
+  err.style.display='none'; return true;
+}
+
+function validarEstratoLive(el){
+  const v = el.value.trim();
+  const err = document.getElementById('err-est');
+  if(!v){err.textContent='⚠️ El estrato es obligatorio (entero entre 1 y 6)';err.style.display='block';return false;}
+  if(v.includes('.')||v.includes(',')){err.textContent='⚠️ El estrato debe ser entero, no decimal. Valores válidos: 1, 2, 3, 4, 5 ó 6';err.style.display='block';return false;}
+  if(!/^\d+$/.test(v)){err.textContent='⚠️ El estrato debe ser un número, no letras. Valores válidos: 1, 2, 3, 4, 5 ó 6';err.style.display='block';return false;}
+  const n=parseInt(v);
+  if(n<1||n>6){err.textContent=`⚠️ Estrato ${n} fuera del rango socioeconómico colombiano [1, 6]`;err.style.display='block';return false;}
+  err.style.display='none'; return true;
+}
+
+function validarNombreLive(v){
+  const err = document.getElementById('err-nom');
+  if(!v||!v.trim()){err.textContent='⚠️ El nombre es obligatorio';err.style.display='block';return false;}
+  const palabras = v.trim().split(/\s+/).filter(p=>p.length>0);
+  if(palabras.length<2){err.textContent='⚠️ Escribe al menos nombre y apellido (dos palabras)';err.style.display='block';return false;}
+  err.style.display='none'; return true;
+}
+
+function validarComentario(el){
+  const v = el.value;
+  const palabras = v.trim() ? v.trim().split(/\s+/).filter(p=>p.length>0) : [];
+  const cnt = document.getElementById('cnt-P07');
+  const err = document.getElementById('err-P07');
+  if(cnt) cnt.textContent = `${palabras.length} / 60 palabras`;
+  if(palabras.length > 60){
+    err.style.display='block';
+    el.style.borderColor='var(--rose)';
+    respMap['P07'] = palabras.slice(0,60).join(' ');
+  } else {
+    err.style.display='none';
+    el.style.borderColor='';
+    respMap['P07'] = v || null;
+  }
 }
 
 async function submitEnc(){
   const nom=document.getElementById('f-nom').value.trim();
-  const edad=parseInt(document.getElementById('f-edad').value);
+  const edadStr=document.getElementById('f-edad').value.trim();
   const gen=document.getElementById('f-gen').value||null;
-  const est=parseInt(document.getElementById('f-est').value);
+  const estStr=document.getElementById('f-est').value.trim();
   const edu=document.getElementById('f-edu').value||null;
   const dep=document.getElementById('f-dep').value;
   const can=document.getElementById('f-can').value||null;
-  if(!nom||!dep||!est){alertEl('alert-enc','er','⚠️ Nombre, departamento y estrato son obligatorios.');return;}
+
+  // Validaciones client-side antes de enviar al API
+  let formOK = true;
+  if(!validarNombreLive(nom)) formOK=false;
+  if(!validarEdadLive({value:edadStr})) formOK=false;
+  if(!validarEstratoLive({value:estStr})) formOK=false;
+  if(!dep){document.getElementById('err-dep').style.display='block';formOK=false;}
+  else{document.getElementById('err-dep').style.display='none';}
+  if(!formOK){alertEl('alert-enc','er','⚠️ Corrige los campos marcados en rojo antes de continuar.');return;}
+
+  const edad=parseInt(edadStr);
+  const est=parseInt(estStr);
 
   // Validar preguntas requeridas
   let valid=true;

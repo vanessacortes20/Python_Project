@@ -3,27 +3,43 @@ models.py
 =========
 Modelos Pydantic para la API de Gestión de Encuestas Poblacionales.
 
-Arquitectura de modelos anidados:
+Arquitectura de modelos anidados (RF1):
   Encuestado → RespuestaEncuesta → EncuestaCompleta → EncuestaDB
 
-Se utilizan tipos complejos (List, Union, Optional, Dict),
-anotaciones de tipo, @field_validator con mode='before' y mode='after',
-y model_config con json_schema_extra para Swagger.
+Patrones aplicados de la actividad:
+  - Annotated[T, Field(...)]  → restricciones embebidas en el tipo (PRE 3, PRE 16)
+  - Literal[...]              → enumeraciones de dominio cerrado (PRE 3, PRE 12)
+  - Enum (str)                → tipos categóricos tipados (PRE 12)
+  - ClassVar                  → constantes de clase compartidas (PRE 5)
+  - typing_extensions         → retrocompatibilidad de anotaciones (PRE 1, PRE 2)
+  - @field_validator mode=before/after → coerción y dominio (RF2)
+  - @model_validator mode=after        → integridad cruzada (RF2)
+  - BitacoraAuditoria         → registro de exclusiones (PRE 16)
+  - Union[int, float, str, None] → polimorfismo de respuesta (RF1)
+  - Optional[str]             → campos opcionales (RF1)
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from enum import Enum
+from typing import Any, ClassVar, Dict, List, Optional, Union
+
+# typing_extensions: retrocompatibilidad de Annotated en Python < 3.9
+# (patrón explícito de los ejemplos de la actividad PRE 1 y PRE 2)
+try:
+    from typing import Annotated, Literal
+except ImportError:  # Python < 3.9
+    from typing_extensions import Annotated, Literal  # type: ignore
 
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     field_validator,
     model_validator,
 )
-from pydantic import ConfigDict
 
 from validators import (
     DEPARTAMENTOS_COLOMBIA,
@@ -32,6 +48,89 @@ from validators import (
     validar_escala_likert,
     validar_porcentaje,
 )
+
+
+# ---------------------------------------------------------------------------
+# Enums de dominio cerrado (patrón VariantePatogeno de PRE 12)
+# ---------------------------------------------------------------------------
+
+class NivelEducativo(str, Enum):
+    """
+    Nivel educativo más alto alcanzado.
+    str + Enum permite serialización directa a JSON sin .value.
+    Patrón: VariantePatogeno(str, Enum) de la actividad (PRE 12).
+    """
+    NINGUNO        = "Ninguna de las anteriores"
+    PRIMARIA       = "Primaria"
+    SECUNDARIA     = "Secundaria"
+    TECNICO        = "Técnico"
+    TECNOLOGO      = "Tecnólogo"
+    UNIVERSITARIO  = "Universitario"
+    POSGRADO       = "Posgrado"
+
+
+class TipoPregunta(str, Enum):
+    """
+    Tipo de pregunta en la encuesta.
+    Enum cerrado para garantizar integridad referencial.
+    """
+    LIKERT     = "likert"
+    PORCENTAJE = "porcentaje"
+    TEXTO      = "texto"
+    BINARIO    = "binario"
+
+
+# ---------------------------------------------------------------------------
+# BitacoraAuditoria — patrón explícito de la actividad (PRE 16)
+# Registra exclusiones y validaciones exitosas con metadatos forenses.
+# ---------------------------------------------------------------------------
+
+class BitacoraAuditoria:
+    """
+    Sistema de registro de exclusiones para cumplimiento con protocolos
+    de auditoría estadística. Patrón directo de la actividad (PRE 16).
+    """
+    def __init__(self) -> None:
+        self.exclusiones: List[Dict[str, Any]] = []
+        self.validaciones_exitosas: List[str] = []
+
+    def registrar_exclusion(
+        self,
+        payload_original: dict,
+        errores: list,
+        timestamp: str,
+    ) -> None:
+        """Registra una exclusión con metadatos forenses completos."""
+        for error in errores:
+            self.exclusiones.append({
+                "timestamp": timestamp,
+                "payload": payload_original,
+                "campo": error.get("loc", "desconocido"),
+                "mensaje": error.get("msg", ""),
+                "tipo": error.get("type", ""),
+            })
+
+    def registrar_exito(self, encuesta_id: str) -> None:
+        """Registra una validación exitosa."""
+        self.validaciones_exitosas.append(encuesta_id)
+
+    @property
+    def tasa_rechazo(self) -> float:
+        """Proporción de rechazos sobre el total de intentos."""
+        total = len(self.exclusiones) + len(self.validaciones_exitosas)
+        return round(len(self.exclusiones) / total, 4) if total > 0 else 0.0
+
+    def resumen(self) -> Dict[str, Any]:
+        return {
+            "total_intentos": len(self.exclusiones) + len(self.validaciones_exitosas),
+            "validaciones_exitosas": len(self.validaciones_exitosas),
+            "exclusiones": len(self.exclusiones),
+            "tasa_rechazo": self.tasa_rechazo,
+        }
+
+
+# Instancia global de bitácora (compartida en memoria durante la sesión)
+bitacora_global = BitacoraAuditoria()
 
 # ---------------------------------------------------------------------------
 # Sub-modelo 1: Encuestado (datos demográficos)
@@ -63,35 +162,36 @@ class Encuestado(BaseModel):
         }
     )
 
-    nombre: str = Field(
-        ...,
-        min_length=2,
+    # Annotated[T, Field(...)] — restricciones embebidas en el tipo
+    # Patrón directo de ObservacionClinica y ObservacionDemografica (PRE 3, PRE 16)
+    nombre: Annotated[str, Field(
+        min_length=3,
         max_length=100,
-        description="Nombre completo del encuestado",
-    )
-    edad: int = Field(
-        ...,
+        description="Nombre completo (mínimo nombre y apellido separados por espacio)",
+    )]
+    edad: Annotated[int, Field(
         ge=0,
         le=120,
-        description="Edad en años. Restricción biológica: [0, 120]",
-    )
+        description="Edad en años. Restricción biológica [0, 120] — patrón ObservacionClinica (actividad)",
+    )]
     genero: Optional[str] = Field(
         default=None,
-        description="Género del encuestado. Acepta None para omitir.",
+        description="Género del encuestado. None = no especificado.",
     )
-    estrato: int = Field(
-        ...,
+    # Annotated con restricciones DANE — escala socioeconómica colombiana [1,6]
+    estrato: Annotated[int, Field(
         ge=1,
         le=6,
-        description="Estrato socioeconómico colombiano (1 al 6)",
-    )
+        description="Estrato socioeconómico DANE [1–6]. Solo enteros, sin decimales.",
+    )]
     departamento: str = Field(
         ...,
         description=f"Departamento colombiano. Válidos: {', '.join(DEPARTAMENTOS_COLOMBIA[:5])}...",
     )
-    nivel_educativo: Optional[str] = Field(
+    # NivelEducativo Enum — patrón VariantePatogeno(str, Enum) de la actividad (PRE 12)
+    nivel_educativo: Optional[NivelEducativo] = Field(
         default=None,
-        description="Nivel educativo más alto alcanzado",
+        description="Nivel educativo. Usa NivelEducativo enum (str serializable a JSON).",
     )
 
     # --- Validadores ---
@@ -101,16 +201,36 @@ class Encuestado(BaseModel):
     def edad_debe_ser_numero(cls, v: Any) -> int:
         """
         mode='before': se ejecuta ANTES de la validación de tipo de Pydantic.
-        Permite convertir strings numéricos ("34") a int antes de validar el rango.
+        Convierte strings numéricos a int. Rechaza letras, decimales y vacíos.
+        Patrón tomado de ObservacionDemografica (actividad) con restricción biológica.
         """
+        if v is None or v == "":
+            raise ValueError("La edad es obligatoria. Debe ser un entero entre 0 y 120.")
         if isinstance(v, str):
             v = v.strip()
-            if not v.isdigit():
-                raise ValueError(f"La edad debe ser un número entero, se recibió: '{v}'")
+            if not v:
+                raise ValueError("La edad es obligatoria. Debe ser un entero entre 0 y 120.")
+            if "." in v or "," in v:
+                raise ValueError(
+                    f"La edad debe ser un número entero, no decimal. "
+                    f"Recibido: '{v}'. Ejemplo válido: 34"
+                )
+            if not v.lstrip("-").isdigit():
+                raise ValueError(
+                    f"La edad debe ser un número entero, no letras. "
+                    f"Recibido: '{v}'. Ejemplo válido: 34"
+                )
             v = int(v)
-        if not isinstance(v, (int, float)):
-            raise ValueError(f"La edad debe ser numérica, se recibió tipo: {type(v).__name__}")
-        return int(v)
+        if isinstance(v, float):
+            if v != int(v):
+                raise ValueError(
+                    f"La edad debe ser un número entero, no decimal. "
+                    f"Recibido: {v}. Ejemplo válido: 34"
+                )
+            v = int(v)
+        if not isinstance(v, int):
+            raise ValueError(f"La edad debe ser numérica, se recibió: {type(v).__name__}")
+        return v
 
     @field_validator("edad", mode="after")
     @classmethod
@@ -129,12 +249,56 @@ class Encuestado(BaseModel):
     @field_validator("estrato", mode="before")
     @classmethod
     def estrato_coercion(cls, v: Any) -> int:
-        """Convierte strings a entero antes de validar el rango."""
+        """
+        mode='before': convierte strings a int, rechaza decimales, letras y vacíos.
+        Escala socioeconómica colombiana [1, 6] — solo enteros.
+        Implementa patrón Annotated[int, Field(ge=1, le=6)] de la actividad.
+        """
+        if v is None or v == "":
+            raise ValueError("El estrato es obligatorio. Debe ser un entero entre 1 y 6.")
         if isinstance(v, str):
-            try:
-                return int(v.strip())
-            except ValueError:
-                raise ValueError(f"El estrato debe ser entero entre 1 y 6, se recibió: '{v}'")
+            v = v.strip()
+            if not v:
+                raise ValueError("El estrato es obligatorio. Debe ser un entero entre 1 y 6.")
+            if "." in v or "," in v:
+                raise ValueError(
+                    f"El estrato debe ser un número entero (no decimal). "
+                    f"Recibido: '{v}'. Valores válidos: 1, 2, 3, 4, 5 ó 6."
+                )
+            if not v.lstrip("-").isdigit():
+                raise ValueError(
+                    f"El estrato debe ser un número, no letras. "
+                    f"Recibido: '{v}'. Valores válidos: 1, 2, 3, 4, 5 ó 6."
+                )
+            v = int(v)
+        if isinstance(v, float):
+            if v != int(v):
+                raise ValueError(
+                    f"El estrato debe ser entero, no decimal. "
+                    f"Recibido: {v}. Valores válidos: 1, 2, 3, 4, 5 ó 6."
+                )
+            v = int(v)
+        if not isinstance(v, int):
+            raise ValueError("El estrato debe ser numérico. Valores válidos: 1, 2, 3, 4, 5 ó 6.")
+        if not (1 <= v <= 6):
+            raise ValueError(
+                f"Estrato {v} fuera del rango socioeconómico colombiano [1, 6]. "
+                f"Valores válidos: 1, 2, 3, 4, 5 ó 6."
+            )
+        return v
+
+    @field_validator("estrato", mode="after")
+    @classmethod
+    def estrato_rango_colombiano(cls, v: int) -> int:
+        """
+        mode='after': verificación de rango DESPUÉS de coerción.
+        Garantiza escala socioeconómica DANE [1,6].
+        """
+        if not (1 <= v <= 6):
+            raise ValueError(
+                f"Estrato {v} fuera del rango socioeconómico colombiano [1, 6]. "
+                "Valores válidos: 1, 2, 3, 4, 5 ó 6."
+            )
         return v
 
     @field_validator("departamento", mode="before")
@@ -148,11 +312,26 @@ class Encuestado(BaseModel):
             raise ValueError("El departamento debe ser texto.")
         return normalizar_departamento(v)
 
+    @field_validator("nombre", mode="after")
+    @classmethod
+    def nombre_dos_palabras(cls, v: str) -> str:
+        """
+        mode='after': valida que el nombre tiene al menos dos palabras
+        (nombre + apellido). Patrón Field(min_length=3) de la actividad.
+        """
+        palabras = [p for p in v.strip().split() if p]
+        if len(palabras) < 2:
+            raise ValueError(
+                f"El nombre '{v}' debe incluir al menos nombre y apellido. "
+                "Ejemplo: 'María García'"
+            )
+        return " ".join(palabras)
+
     @field_validator("genero", mode="before")
     @classmethod
     def genero_normalizar(cls, v: Any) -> Optional[str]:
-        """Normaliza el género a minúsculas para comparación."""
-        if v is None:
+        """Normaliza el género. None es válido (campo opcional)."""
+        if v is None or (isinstance(v, str) and not v.strip()):
             return None
         if isinstance(v, str):
             return v.strip()
@@ -167,12 +346,19 @@ class RespuestaEncuesta(BaseModel):
     """
     Respuesta de un encuestado a una pregunta específica.
 
-    Soporta múltiples tipos de respuesta mediante Union:
+    Soporta múltiples tipos de respuesta mediante Union[int, float, str, None]:
     - Escala Likert (1-5): preguntas de satisfacción
     - Porcentaje (0.0-100.0): preguntas cuantitativas
-    - Texto libre: comentarios abiertos
+    - Texto libre: comentarios abiertos (máx. 60 palabras)
     - None: respuesta omitida (MCAR/MAR explícito)
+
+    Usa TipoPregunta(str, Enum) para dominio cerrado — patrón PRE 12.
+    ClassVar: constante de clase compartida entre instancias (patrón PRE 5).
     """
+    # ClassVar: no es campo de instancia, es metadato de clase
+    # Patrón explícito del ejemplo ObservacionIris de la actividad (PRE 5)
+    TIPOS_NUMERICOS: ClassVar[frozenset] = frozenset({"likert", "porcentaje"})
+    MAX_PALABRAS_COMENTARIO: ClassVar[int] = 60
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -191,9 +377,11 @@ class RespuestaEncuesta(BaseModel):
         min_length=1,
         max_length=50,
     )
-    tipo_pregunta: str = Field(
+    # TipoPregunta Enum — dominio cerrado, serializable como str
+    # Patrón: VariantePatogeno(str, Enum) de la actividad (PRE 12)
+    tipo_pregunta: TipoPregunta = Field(
         ...,
-        description="Tipo: 'likert', 'porcentaje', 'texto', 'binario'",
+        description="Tipo de pregunta: likert | porcentaje | texto | binario",
     )
     # Union[int, float, str, None] permite manejar diferentes escalas de medición
     valor: Union[int, float, str, None] = Field(
@@ -202,25 +390,27 @@ class RespuestaEncuesta(BaseModel):
     )
     comentario: Optional[str] = Field(
         default=None,
-        description="Comentario libre adicional del encuestado",
-        max_length=1000,
+        description="Comentario libre adicional (máximo 60 palabras)",
+        max_length=500,
     )
 
     @field_validator("tipo_pregunta", mode="before")
     @classmethod
-    def tipo_pregunta_valido(cls, v: Any) -> str:
+    def tipo_pregunta_normalizar(cls, v: Any) -> str:
         """
-        mode='before': normaliza y valida el tipo de pregunta antes del procesamiento.
-        Garantiza que el pipeline estadístico sabrá cómo tratar el valor.
+        mode='before': normaliza string a lowercase antes de que Pydantic
+        lo valide contra el Enum TipoPregunta. Permite enviar 'LIKERT' o 'Likert'.
+        Patrón: normalización antes de comparar con dominio cerrado (actividad PRE 12).
         """
+        if isinstance(v, TipoPregunta):
+            return v.value
         if not isinstance(v, str):
             raise ValueError("El tipo de pregunta debe ser texto.")
         v_norm = v.strip().lower()
-        tipos_validos = {"likert", "porcentaje", "texto", "binario"}
+        tipos_validos = {t.value for t in TipoPregunta}
         if v_norm not in tipos_validos:
             raise ValueError(
-                f"Tipo de pregunta '{v}' no reconocido. "
-                f"Tipos válidos: {tipos_validos}"
+                f"Tipo '{v}' no reconocido. Válidos: {sorted(tipos_validos)}"
             )
         return v_norm
 
@@ -260,6 +450,23 @@ class RespuestaEncuesta(BaseModel):
                     f"Para tipo 'binario', el valor debe ser sí/no. Se recibió: {v}"
                 )
 
+        return v
+
+    @field_validator("comentario", mode="after")
+    @classmethod
+    def comentario_limite_palabras(cls, v: Optional[str]) -> Optional[str]:
+        """
+        mode='after': limita el comentario a 60 palabras.
+        Si el usuario escribe más, se rechaza con mensaje claro.
+        """
+        if v is None:
+            return v
+        palabras = v.split()
+        if len(palabras) > 60:
+            raise ValueError(
+                f"El comentario excede el límite de 60 palabras ({len(palabras)} recibidas). "
+                "Por favor reduce tu comentario."
+            )
         return v
 
 
